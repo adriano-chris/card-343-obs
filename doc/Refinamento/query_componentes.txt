@@ -1,0 +1,20 @@
+            Select Rsnum --nro da reserva
+              From Afko
+             Where Mandt = '400' --trocar para 400
+               And Aufnr = lpad('1851486',12,0);
+               
+               
+               select a.baugr, a.matnr, c.maktx
+               from resb a,
+                    Mara b,
+                    makt c
+               where  rsnum = '0033464090'
+             and   a.Mandt = '400' --trocar para 400
+               And a.Aufnr = lpad('1851486',12,0)
+               AND A.MATNR = B.MATNR 
+               and A.MATNR = c.MATNR 
+               AND Ltrim(Rtrim(b.Normt)) Is Null
+               order by baugr;
+               
+
+--no cursor não é para mostrar o campo baugr, porém ordenar por ele

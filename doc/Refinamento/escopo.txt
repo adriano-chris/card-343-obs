@@ -1,0 +1,42 @@
+Apontamento de componentes
+
+0 - criar os campos codigo componente e sequencial do grupo na tabela Ztpp_Apt_Desvio
+
+1 - Fazer uma nova procedure para listar todos os componentes rastreaveis da OP
+
+            Select Rsnum --nro da reserva
+              From Afko
+             Where Mandt = '400' --trocar para 400
+               And Aufnr = lpad('1851486',12,0);
+               
+               
+               select a.baugr, a.matnr, c.maktx
+               from resb a,
+                    Mara b,
+                    makt c
+               where  rsnum = '0033464090'
+             and   a.Mandt = '400' --trocar para 400
+               And a.Aufnr = lpad('1851486',12,0)
+               AND A.MATNR = B.MATNR 
+               and A.MATNR = c.MATNR 
+               AND Ltrim(Rtrim(b.Normt)) Is Null
+               order by baugr;               
+
+--no cursor não é para mostrar o campo baugr, porém ordenar por ele
+
+2 - Botão Gravar: Se tiver preenchido os componentes, chamar a procedure chrpp_mf007_pkg.Grava_Apontamento_Desvio_Comp, senão chamar a procedure já existente chrpp_mf007_pkg.Grava_Apontamento_Desvio
+Se for componentes, gravar os codigos dos componentes (000000006068131170;000000006067110273;000000006152110218) e sequencial por grupo (Ztpp_Apt_Desvio)
+
+Se for produto, gravar em branco os codigos dos componentes e sequencial 0 (Ztpp_Apt_Desvio)
+
+Se for para Gravar passar o P_Contador nulo, se for para editar passar o P_Contador preenchido.
+
+
+3 - Gerar uma nova procedure para listar os componentes por grupo.
+
+
+
+
+
+
+
