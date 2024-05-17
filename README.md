@@ -1,11 +1,15 @@
-# card-343-obs
 
-PP007 Implementação do Apontamento de Componente Filho
+<center><h1>1º FASE DO PROJETO</h1></center>
+<center><h2>card-343</h2></center>
+
+<center><h2>PP007 Implementação do Apontamento de Componente Filho</h2></center>
+
+
 
 
 ### Item 1
 ```sh
-CRIAR CAMPOS NA TABELA DO SAP
+ALTERAR TABELA Z DO SAP
     Criado os campo "componente e  Index_Comp"na tabela Ztpp_Apt_Desvio
 ```
 
@@ -31,7 +35,7 @@ CRIAR PROCEDURE GRAVA_APONTAMENTO_DESVIO_COMP
 
 ### Item 5
 ```sh
-CRIAR PROCEDURE LISTA_APONTAMENTO
+CRIAR PROCEDURE LISTA_APONTAMENTO_POR_GRUPO
     Após persistência dos dados, deve ser chamado esse objeto para exibir a lista dos componentes apontados.
     Quando produto  o cursor não retornará dados!
     Quando Componente o cursor retornará dados conforme o index_Comp passado como parâmetro de entrada.
@@ -42,4 +46,7 @@ CRIAR PROCEDURE LISTA_APONTAMENTO
 CRIAR FUNCTION FUN_CALC_GENERICO
     Criado função chriserp.chrpp_mf007_pkg.fun_calc_generico para gerenciar o "contador e o index_comp" da tabela Ztpp_Apt_Desvio no processo de apontamento de componente(Filho).
 ```
+
+
+<center><h1>2º FASE DO PROJETO</h1></center>
 

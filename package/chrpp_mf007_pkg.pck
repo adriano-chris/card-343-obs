@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE chrpp_mf007_pkg IS
+CREATE OR REPLACE PACKAGE CHRISERP.chrpp_mf007_pkg IS
 
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
    -- Finalidade: Criar o tipo REF CURSOR que será o cursor
@@ -84,21 +84,22 @@ CREATE OR REPLACE PACKAGE chrpp_mf007_pkg IS
 
 
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-   -- Finalidade: Efetuar Apontamento de Componentes
+   -- Finalidade: Efetuar Apontamento de Componentes Filho
    -- Autor.....: Adriano Lima
    -- Data......: 16/04/2024
+   -- Trello....: Card-343
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-   PROCEDURE Grava_Apontamento_Desvio_Comp (   P_Sq_Lote         IN  Pd_Lote_Rastrea.Sq_Lote%TYPE
-                                             , P_Terminal        IN  VARCHAR2
-                                             , P_Cod_Desvio      IN  VARCHAR2
-                                             , P_Qtde            IN  NUMBER
-                                             , P_Observacao      IN  VARCHAR2                                                                                                                               
-                                             , P_Contador        IN  OUT NUMBER                               -- quando precisar editar                                               
-                                             , P_Lista_Comp      IN  VARCHAR2                    Default Null
-                                             , P_index_comp      Ztpp_Apt_Desvio.Index_comp%Type Default Null -- quando for apontar por agrupamento, informar o Index 
-                                             , P_Erro_Num        OUT NUMBER
-                                             , P_Erro_Des        OUT VARCHAR2                                             
-                                             );   
+   Procedure Grava_Apontamento_Desvio_Comp (   P_Sq_Lote         In  Pd_Lote_Rastrea.Sq_Lote%TYPE
+                                             , P_Terminal        In  Varchar2
+                                             , P_Cod_Desvio      In  Varchar2
+                                             , P_Qtde            In  Number
+                                             , P_Observacao      In  Varchar2
+                                             --, P_Contador        In  Out Number                                   -- quando precisar editar
+                                             , P_Lista_Comp      In  Varchar2                        Default Null
+                                             , P_index_comp      In  Ztpp_Apt_Desvio.Index_comp%Type Default Null -- quando for apontar por agrupamento, informar o Index
+                                             , P_Erro_Num        Out Number
+                                             , P_Erro_Des        Out Varchar2
+                                             ); 
 
 
 
@@ -178,33 +179,43 @@ CREATE OR REPLACE PACKAGE chrpp_mf007_pkg IS
 
 
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-   -- Finalidade: Sistema para Apontamento de Refugo no M.E.S para subcomponentes
+   -- Finalidade: Retornar Lista Técnica de Componentes do SAP
    -- Autor.....: Adriano Lima
-   -- Data......: 06/05/2024
-   -- Card......: 343
-   -- Objetos...: 
-   -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --         
-   
-  Procedure Lista_Tecnica_Comp_Filho(  P_Nr_Ordem            In  Afko.Aufnr%Type
-                                     , P_Mandt              In  Afko.Mandt%Type Default '400'
-                                     , P_Cursor             Out G_Cursor 
-                                     , P_Erro_Num           Out Number
-                                     , P_Erro_Des           Out Varchar2 ); 
-                                     
-  Procedure Lista_Apontamento (   P_Nr_Ordem            In  Afko.Aufnr%Type
-                                , P_Idex_Comp           In  Ztpp_Apt_Desvio.Index_Comp%type
-                                , P_Cursor              Out G_Cursor
-                                , P_Erro_Num            Out Number
-                                , P_Erro_Des            Out Varchar2 );                                          
+   -- Data......: 16/04/2024
+   -- Trello....: Card-343
+   -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --   
+   Procedure Lista_Tecnica_Comp_Filho(  P_Nr_Ordem           In  Afko.Aufnr%Type
+                                      , P_Mandt              In  Afko.Mandt%Type Default '400'
+                                      , P_Cursor             Out G_Cursor 
+                                      , P_Erro_Num           Out Number
+                                      , P_Erro_Des           Out Varchar2 ); 
+                                      
+   -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+   -- Finalidade: Retornar Lista de Apontamento Realizados Por Grupo
+   -- Autor.....: Adriano Lima
+   -- Data......: 16/04/2024
+   -- Trello....: Card-343
+   -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --                                      
+   Procedure Lista_Apontamento_Por_Grupo (   P_Nr_Ordem            In  Afko.Aufnr%Type
+                                           , P_Idex_Comp           In  Ztpp_Apt_Desvio.Index_Comp%type
+                                           , P_Cursor              Out G_Cursor
+                                           , P_Erro_Num            Out Number
+                                           , P_Erro_Des            Out Varchar2 );                                          
+   -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+   -- Finalidade: Função Genérica, Permite Novas Implementações Dentro da MF007.
+   -- Autor.....: Adriano Lima
+   -- Data......: 16/04/2024
+   -- Trello....: Card-343
+   -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --                                        
                                          
-  Function Fun_Calc_Generico (   P_Calc                     Number
+   Function Fun_Calc_Generico (  P_Calc                     Number
                                , P_Erro_Num                 Out Number
                                , P_Erro_Des                 Out Varchar2 ) Return varchar2;                                                                  
                                       
  
 END;
 /
-CREATE OR REPLACE PACKAGE BODY chrpp_mf007_pkg IS
+CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf007_pkg IS
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
    -- Apontamento de Defeito                                                                             --
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -480,7 +491,7 @@ CREATE OR REPLACE PACKAGE BODY chrpp_mf007_pkg IS
              From Tg_Maq_Ct_Terminal a,
                   Tg_Maquina b
             Where a.Sq_Maquina  = b.Sq_Maquina
-              And b.Cd_Maquina  = '0720'
+              And b.Cd_Maquina  = V_Cod_Maquina --'0880'
               And Upper(a.Nm_Terminal) = Nvl(Upper(P_Terminal),a.Nm_Terminal);
         Exception
            When No_Data_Found Then
@@ -668,143 +679,143 @@ CREATE OR REPLACE PACKAGE BODY chrpp_mf007_pkg IS
    -- Autor.....: Adriano Lima
    -- Data......: 16/04/2024
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-   PROCEDURE Grava_Apontamento_Desvio_Comp (   P_Sq_Lote         IN  Pd_Lote_Rastrea.Sq_Lote%TYPE
-                                             , P_Terminal        IN  VARCHAR2
-                                             , P_Cod_Desvio      IN  VARCHAR2
-                                             , P_Qtde            IN  NUMBER
-                                             , P_Observacao      IN  VARCHAR2
-                                             , P_Contador        IN  OUT NUMBER                               -- quando precisar editar
-                                             , P_Lista_Comp      IN  VARCHAR2                    Default Null
-                                             , P_index_comp      Ztpp_Apt_Desvio.Index_comp%Type Default Null -- quando for apontar por agrupamento, informar o Index
-                                             , P_Erro_Num        OUT NUMBER
-                                             , P_Erro_Des        OUT VARCHAR2
+   Procedure Grava_Apontamento_Desvio_Comp (   P_Sq_Lote         In  Pd_Lote_Rastrea.Sq_Lote%TYPE
+                                             , P_Terminal        In  Varchar2
+                                             , P_Cod_Desvio      In  Varchar2
+                                             , P_Qtde            In  Number
+                                             , P_Observacao      In  Varchar2
+                                             --, P_Contador        In  Out Number                                   -- quando precisar editar
+                                             , P_Lista_Comp      In Varchar2                        Default Null
+                                             , P_index_comp      In  Ztpp_Apt_Desvio.Index_comp%Type Default Null -- quando for apontar por agrupamento, informar o Index
+                                             , P_Erro_Num        Out Number
+                                             , P_Erro_Des        Out Varchar2
                                              )
 
-   IS
+   Is
 
-   V_sq_controle_op                          Pd_op_apontamento.sq_controle_op%TYPE;
+   V_sq_controle_op                          Pd_op_apontamento.sq_controle_op%Type;
    v_qt_tot_desvio                           Ztpp_Apt_Desvio.qtde%type;
    V_Cont                                    Number;
-   V_Token                                   CLOB;
+   V_Token                                   Clob;
    V_Check_Apont                             Number;
    --
    V_Max_Index_Comp                          ztpp_apt_desvio.index_comp%Type;
    V_Min_Index_Comp                          ztpp_apt_desvio.index_comp%Type;
 
 
-   BEGIN
+   Begin
 
      ---------------------
      -- QUANDO FOR INSERT:
      ---------------------
-     iF ( P_Contador Is Null And P_index_comp  Is Null ) Then
+     If ( P_Index_Comp Is Null ) Then
 
-         IF P_Observacao IS NULL THEN
+         IF P_Observacao Is Null Then
            P_Erro_Num := 1;
            P_Erro_Des := ' Campo Observação (motivo do defeito) do campo obrigatório. Verifique! ';
            Return;
-         END IF;
+         End If;
 
          --
          --
-         IF P_Qtde < 0 THEN
+         If P_Qtde < 0 Then
             P_Erro_Num := 1;
             P_Erro_Des := 'Quantidade Inválida. Verifique!';
-            RETURN;
-         END IF;
+            Return;
+         End If;
          --
          --
-         BEGIN
-           SELECT COUNT(*)
-             INTO V_Cont
-             FROM Ztpp_Desvio
-            WHERE Tipo  = '3' --Apontamento de Defeito
-              AND Mandt = '400'
-              AND Cod = P_Cod_Desvio;
-         EXCEPTION
-            WHEN OTHERS THEN
-               P_Erro_Num := SQLCODE;
+         Begin
+           Select Count(*)
+             Into V_Cont
+             From Ztpp_Desvio
+            Where Tipo  = '3' --Apontamento de Defeito
+              And Mandt = '400'
+              And Cod = P_Cod_Desvio;
+         Exception
+            When Others Then
+               P_Erro_Num := Sqlcode;
                P_Erro_Des := 'Chrpp_Mf007_Pkg.Grava_Apontamento_Desvio - Erro ao validar o C?digo do Desvio ' || SqlErrM;
-               RETURN;
-         END;
-         IF V_Cont = 0 THEN
+               Return;
+         End;
+         If V_Cont = 0 Then
             P_Erro_Num := 1;
             P_Erro_Des := ' C?digo do Desvio Inv?lido ('||P_Cod_Desvio||') . Verifique! ';
-            RETURN;
-         END IF;
+            Return;
+         End If;
          --
          --
          -- Busca o Produto da OP
-         BEGIN
-           SELECT Lpad(Part_No,18,0),
+         Begin
+           Select Lpad(Part_No,18,0),
                   Maquina_Cod
-           INTO T.Produto
+           Into T.Produto
               , T.Maquina
-           FROM Pd_Lote_Rastrea
-            WHERE Sq_Lote = P_Sq_Lote;
+            From Pd_Lote_Rastrea
+            Where Sq_Lote = P_Sq_Lote;
             --dbms_output.put_line('V_Produto '||' '||Type_Comp.Produto||chr(13)||'V_Cod_Maquina '||Type_Comp.Maquina);
-         EXCEPTION
-             WHEN OTHERS THEN
-              P_Erro_Num := SQLCODE;
+         Exception
+             When Others Then
+              P_Erro_Num := Sqlcode;
               P_Erro_Des := 'Chrpp_Mf007_Pkg.Grava_Apontamento_Desvio - Erro ao buscar o Código do Produto do Lote ' || SqlErrM;
-              RETURN;
-         END;
+              Return;
+         End;
          --
          --
-         BEGIN
-           SELECT Lpad(Nr_Op,12,0)
-             INTO T.Ordem_Producao
-           FROM Pd_Lote_Op
-            WHERE Sq_Lote = P_Sq_Lote;
+         Begin
+           Select Lpad(Nr_Op,12,0)
+             Into T.Ordem_Producao
+           From Pd_Lote_Op
+            Where Sq_Lote = P_Sq_Lote;
              --dbms_output.put_line(Type_Comp.Ordem_Producao);
-         EXCEPTION
-            WHEN OTHERS THEN
-              P_Erro_Num := SQLCODE;
+         Exception
+            When Others Then
+              P_Erro_Num := Sqlcode;
               P_Erro_Des := 'Chrpp_Mf007_Pkg.Grava_Apontamento_Desvio - Erro ao buscar o Nro da Ordem de Produ??o ' || SqlErrM;
-              RETURN;
-         END;
+              Return;
+         End;
          --
          --
          -- Busca o centro de trabalho para máquina
          BEGIN
-            SELECT MAX(a.Cd_Centro_Custo)
-            INTO T.Centro_Trabalho
-            FROM Tg_Maq_Ct_Terminal a,
-               Tg_Maquina b
-           WHERE a.Sq_Maquina         = b.Sq_Maquina
-             AND b.Cd_Maquina         = '0720' --T.Maquina 0254
-             AND Upper(a.Nm_Terminal) = Nvl(Upper(P_Terminal),a.Nm_Terminal);
+            Select Max(a.Cd_Centro_Custo)
+            Into T.Centro_Trabalho
+            From Tg_Maq_Ct_Terminal a,
+               Tg_Maquina           b
+           Where a.Sq_Maquina         = b.Sq_Maquina
+             And b.Cd_Maquina         = T.Maquina -- 0880
+             And Upper(a.Nm_Terminal) = Nvl(Upper(P_Terminal),a.Nm_Terminal);
              --dbms_output.put_line('Centro_Trabalho '||' '||T.Centro_Trabalho);
-         EXCEPTION
-            WHEN No_Data_Found THEN
-             T.Centro_Trabalho := NULL;
-            WHEN OTHERS THEN
-             P_Erro_Num := SQLCODE;
+         Exception
+            When No_Data_Found Then
+             T.Centro_Trabalho := Null;
+            When Others Then
+             P_Erro_Num := Sqlcode;
              P_Erro_Des := 'Chrpp_Mf007_Pkg.Grava_Apontamento_Desvio - Erro ao buscar o Centro de Trabalho' || SqlErrM;
-             RETURN;
-         END;
+             Return;
+         End;
          --
          --
          -- Hard Code necessário devido sistema da folha de processo (Fecho), para poder consultar varios produtos na folha de processo e
          -- não ficar fixo no produto especifico em produção na máquina.
-         IF Upper(P_Terminal)    = 'TMONTA03' THEN
+         If Upper(P_Terminal)    = 'TMONTA03' Then
            T.Centro_Trabalho := '672'; -- centro de trabalho
-         ELSIF Upper(P_Terminal) = 'TMONTA31' THEN
+         Elsif Upper(P_Terminal) = 'TMONTA31' Then
            T.Centro_Trabalho := '674'; -- centro de trabalho
-         ELSIF Upper(P_Terminal) = 'TMONTA50' THEN
+         Elsif Upper(P_Terminal) = 'TMONTA50' Then
            T.Centro_Trabalho := '674'; -- centro de trabalho
-         ELSIF Upper(P_Terminal) = 'TMONTA11' THEN
+         Elsif Upper(P_Terminal) = 'TMONTA11' Then
            T.Centro_Trabalho := '672'; -- centro de trabalho
-         ELSIF Upper(P_Terminal) = 'TMONTA20' THEN
+         Elsif Upper(P_Terminal) = 'TMONTA20' Then
            T.Centro_Trabalho := '672'; -- centro de trabalho
-         END IF;
+         End If;
          --
          --
-         IF P_Qtde = 0 THEN
+         If P_Qtde = 0 Then
           P_Erro_Num := 1;
           P_Erro_Des := 'Quantidade Inválida. Verifique!';
-          RETURN;
-         END IF;
+          Return;
+         End If;
          --
          --
           T.Mandt                    := '400';
@@ -854,62 +865,62 @@ CREATE OR REPLACE PACKAGE BODY chrpp_mf007_pkg IS
 
                       T.Index_Comp                := fun_calc_generico ( P_Calc => 2, P_Erro_Num => P_Erro_Num, P_Erro_Des => P_Erro_Des );                      
                                             
-                      For token_rec In
+                      For Reg In
                         (
                           Select
-                            Replace(Substr(P_Lista_Comp, (Level - 1) * 19 + 1, 19), ';', ' ') As Token
+                            Replace(Substr(P_Lista_Comp, (Level - 1) * 19 + 1, 19), ';', ' ') As Componente
                           From Dual
                           Connect By
                         ( level - 1 ) * 19 + 1 <= Length( P_Lista_Comp )
                       ) Loop
                       
                         T.Contador                  := fun_calc_generico ( P_Calc => 1, P_Erro_Num => P_Erro_Num, P_Erro_Des => P_Erro_Des );                        
-                        P_Contador                  := T.Contador; 
+                        --P_Contador                  := T.Contador; 
                         
-                        If token_rec.token Is Not Null Then
+                        If Reg.Componente Is Not Null Then
 
-                        Insert Into Ztpp_Apt_Desvio (   Mandt
-                                                               , Contador
-                                                               , Ordem_Producao
-                                                               , Produto
-                                                               , Centro_Trabalho
-                                                               , Maquina
-                                                               , Turno
-                                                               , Codigo_Defeito
-                                                               , Qtde
-                                                               , Sq_Lote
-                                                               , Observacao
-                                                               , Data_Criacao
-                                                               , Usuario_Criacao
-                                                               , Data_Alteracao
-                                                               , Usuario_Alteracao
-                                                               , Hora_Criacao
-                                                               , Hora_Alteracao
-                                                               , Componente
-                                                               , index_comp
-                                                              )
-                                                      Values (
-                                                                 T.Mandt
-                                                               , P_Contador 
-                                                               , Lpad(T.Ordem_Producao,12,0)
-                                                               , T.Produto
-                                                               , T.Centro_Trabalho
-                                                               , T.Maquina
-                                                               , T.Turno
-                                                               , T.Codigo_Defeito
-                                                               , T.Qtde
-                                                               , T.Sq_Lote
-                                                               , Nvl(T.Observacao ,' ')
-                                                               , T.Data_Criacao
-                                                               , T.Usuario_Criacao
-                                                               , T.Data_Alteracao
-                                                               , T.Usuario_Alteracao
-                                                               , T.Hora_Criacao
-                                                               , T.Hora_Alteracao
-                                                               , token_rec.token
-                                                               , T.Index_Comp
-                                                              );
-                                                       Commit;
+                        Insert Into Ztpp_Apt_Desvio (    Mandt
+                                                       , Contador
+                                                       , Ordem_Producao
+                                                       , Produto
+                                                       , Centro_Trabalho
+                                                       , Maquina
+                                                       , Turno
+                                                       , Codigo_Defeito
+                                                       , Qtde
+                                                       , Sq_Lote
+                                                       , Observacao
+                                                       , Data_Criacao
+                                                       , Usuario_Criacao
+                                                       , Data_Alteracao
+                                                       , Usuario_Alteracao
+                                                       , Hora_Criacao
+                                                       , Hora_Alteracao
+                                                       , Componente
+                                                       , index_comp
+                                                      )
+                                              Values (
+                                                         T.Mandt
+                                                       , T.Contador --P_Contador 
+                                                       , Lpad(T.Ordem_Producao,12,0)
+                                                       , T.Produto
+                                                       , T.Centro_Trabalho
+                                                       , T.Maquina
+                                                       , T.Turno
+                                                       , T.Codigo_Defeito
+                                                       , T.Qtde
+                                                       , T.Sq_Lote
+                                                       , Nvl(T.Observacao ,' ')
+                                                       , T.Data_Criacao
+                                                       , T.Usuario_Criacao
+                                                       , T.Data_Alteracao
+                                                       , T.Usuario_Alteracao
+                                                       , T.Hora_Criacao
+                                                       , T.Hora_Alteracao
+                                                       , Reg.Componente
+                                                       , T.Index_Comp
+                                                      );
+                                               Commit;
 
                           --dbms_output.put_line('Componente: ' || token_rec.token);                          
                         END IF;                                               
@@ -932,7 +943,7 @@ CREATE OR REPLACE PACKAGE BODY chrpp_mf007_pkg IS
      -- QUANDO UPDATE:
      -----------------
 
-     Elsif ( P_Contador Is Not Null And P_Contador > 0 ) Then
+     Elsif ( P_Index_Comp Is Not Null And P_Index_Comp > 0 ) Then
        --dbms_output.put_line('Entrou no update');
 
             T.Mandt                    := '400';
@@ -946,158 +957,22 @@ CREATE OR REPLACE PACKAGE BODY chrpp_mf007_pkg IS
                     Data_Alteracao = To_char(Sysdate,'YYYYMMDD'),
                     Hora_Alteracao = To_Char(Sysdate,'HH24MISS')
               Where Mandt          = T.Mandt
-                And Contador       = P_Contador
-                And Index_Comp     > 0;
+                --And Contador       = P_Contador
+                And Sq_Lote        = P_Sq_Lote
+                And Index_Comp     = P_Index_Comp;
                Commit;
 
             End;
 
-
-     -------------------------------------------------------
-     -- INSERE POR AGRUPAMENTO, NECESSÁRIO INDORMAR O ÍNDICE:
-     -------------------------------------------------------
-     Elsif ( P_Contador Is Null And P_index_comp Is Not Null And P_index_comp > 0 ) Then
-     --dbms_output.put_line('Entrou no Insert por agrupamento. ');
-
-             Begin
-               
-               For Reg In ( Select  mandt
-                                  , contador
-                                  , ordem_producao
-                                  , produto
-                                  , centro_trabalho
-                                  , maquina
-                                  , turno
-                                  , codigo_defeito
-                                  , qtde
-                                  , sq_lote
-                                  , observacao
-                                  , data_criacao
-                                  , usuario_criacao
-                                  , data_alteracao
-                                  , usuario_alteracao
-                                  , hora_criacao
-                                  , hora_alteracao
-                                  , componente
-                                  , index_comp
-                            From Ztpp_Apt_Desvio
-                              Where 0=0
-                            And Sq_Lote    = P_Sq_Lote --'219217'
-                            And Index_Comp = P_Index_Comp
-                            --And Rownum     = 1
-                            Order By 2 ) Loop
-
-                            
-
-                            /*
-                            dbms_output.put_line('T.Mandt '             ||Reg.Mandt              ||chr(13)||
-                                                 'T.Contador '          ||T.Contador             ||chr(13)||
-                                                 'T.Ordem_Producao '    ||Reg.Ordem_Producao     ||chr(13)||
-                                                 'T.Produto '           ||Reg.Produto            ||chr(13)||
-                                                 'T.Produto '           ||Reg.Produto            ||chr(13)||
-                                                 'T.Centro_Trabalho   ' ||Reg.Centro_Trabalho    ||chr(13)||
-                                                 'T.Maquina '           ||Reg.Maquina            ||chr(13)||
-                                                 'T.Turno     '         ||Reg.Turno              ||chr(13)||
-                                                 'T.Codigo_Defeito '    ||Reg.Codigo_Defeito     ||chr(13)||
-                                                 'T.Qtde '              ||Reg.Qtde               ||chr(13)||
-                                                 'T.Sq_Lote '           ||Reg.Sq_Lote            ||chr(13)||
-                                                 'T.Observacao '        ||Reg.Observacao         ||chr(13)||
-                                                 'T.Data_Criacao '      ||Reg.Data_Criacao       ||chr(13)||
-                                                 'T.Usuario_Criacao '   ||Reg.Usuario_Criacao    ||chr(13)||
-                                                 'T.Data_Alteracao '    ||Reg.Data_Alteracao     ||chr(13)||
-                                                 'T.Usuario_Alteracao ' ||Reg.Usuario_Alteracao  ||chr(13)||
-                                                 'T.Hora_Criacao '      ||Reg.Hora_Criacao       ||chr(13)||
-                                                 'T.Hora_Alteracao '    ||Reg.Hora_Alteracao     ||chr(13)||
-                                                 'T.componente '        ||Reg.componente         ||chr(13)||
-                                                 'T.Index_Comp '        ||Reg.Index_Comp         ||chr(13)
-                                                 ); 
-                                                 */
-                            
-                            T.Contador                  := fun_calc_generico ( P_Calc => 1, P_Erro_Num => P_Erro_Num, P_Erro_Des => P_Erro_Des );                        
-                            P_Contador                  := T.Contador; 
-                            
-                            Insert Into Ztpp_Apt_Desvio (  Mandt
-                                                         , Contador
-                                                         , Ordem_Producao
-                                                         , Produto
-                                                         , Centro_Trabalho
-                                                         , Maquina
-                                                         , Turno
-                                                         , Codigo_Defeito
-                                                         , Qtde
-                                                         , Sq_Lote
-                                                         , Observacao
-                                                         , Data_Criacao
-                                                         , Usuario_Criacao
-                                                         , Data_Alteracao
-                                                         , Usuario_Alteracao
-                                                         , Hora_Criacao
-                                                         , Hora_Alteracao
-                                                         , Componente
-                                                         , index_comp
-                                                        )
-                                                Values (
-                                                           Reg.Mandt
-                                                         , P_Contador 
-                                                         , Reg.Ordem_Producao
-                                                         , Reg.Produto
-                                                         , Reg.Centro_Trabalho
-                                                         , Reg.Maquina
-                                                         , Reg.Turno
-                                                         , P_Cod_Desvio
-                                                         , P_Qtde
-                                                         , Reg.Sq_Lote
-                                                         , P_Observacao
-                                                         , Reg.Data_Criacao
-                                                         , Reg.Usuario_Criacao
-                                                         , Reg.Data_Alteracao
-                                                         , Reg.Usuario_Alteracao
-                                                         , Reg.Hora_Criacao
-                                                         , Reg.Hora_Alteracao
-                                                         , Reg.Componente
-                                                         , Reg.Index_Comp
-                                                        );
-                                                  Commit;
-
-                End Loop;
-             End;
-     ---------------------------
-     -- ATUALIZA POR AGRUPAMENTO:
-     ---------------------------
-     Elsif ( P_Contador = 0  And P_index_comp > 0 ) Then
-     --dbms_output.put_line('Insere por agrupamento.');
-
-     For Reg In ( Select  mandt
-                  From Ztpp_Apt_Desvio
-                    Where 0=0
-                  And Sq_Lote    = P_Sq_Lote --'219217'
-                  And Index_Comp = P_Index_Comp
-                  --And Rownum     = 1
-                  ) Loop
-
-
-                        Update Ztpp_Apt_Desvio
-                          Set Codigo_Defeito = Lpad(Nvl(P_Cod_Desvio,Codigo_Defeito),4,0),
-                              Observacao     = Nvl(P_Observacao,Observacao),
-                              Qtde           = P_Qtde,
-                              Sq_Lote        = P_Sq_Lote,
-                              Data_Alteracao = To_char(Sysdate,'YYYYMMDD'),
-                              Hora_Alteracao = To_Char(Sysdate,'HH24MISS')
-                        Where Mandt          = Reg.Mandt
-                          And Index_Comp     = P_index_comp;
-                         Commit;
-
-                  End Loop;
-
+     
        Else
          Null;
      --
      --
      End If;
+     
    --
    --
-
-
    END;
 
 
@@ -1508,24 +1383,21 @@ CREATE OR REPLACE PACKAGE BODY chrpp_mf007_pkg IS
           P_Erro_Des := 'Chrpp_Mf005_Pkg.Grava_Desvio_Automatico - Erro Geral. ' || SqlErrM;
    End;
    --
-   -- Adriano 05/05/2024:
+   --
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-   -- Finalidade: Sistema para Apontamento de Refugo no M.E.S para subcomponentes
+   -- Finalidade: Retornar Lista Técnica de Componentes do SAP
    -- Autor.....: Adriano Lima
-   -- Data......: 06/05/2024
-   -- Card......: 343
-   -- Objetos...:
-   -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-
+   -- Data......: 16/04/2024
+   -- Trello....: Card-343
+   -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --   
    Procedure Lista_Tecnica_Comp_Filho(   P_Nr_Ordem                  In  Afko.Aufnr%Type
                                        , P_Mandt                     In  Afko.Mandt%Type Default '400'
                                        , P_Cursor                    Out G_Cursor
                                        , P_Erro_Num                  Out Number
-                                       , P_Erro_Des                  Out Varchar2
-                                     )
+                                       , P_Erro_Des                  Out Varchar2 )
    Is
 
-    C_Ordem_Sap                      Constant Varchar2(50):= 'Ordem Inválida! Não existe no SAP, verificar.';
+    C_Ordem_Sap                        Constant Varchar2(50):= 'Ordem Inválida! Não existe no SAP, verificar.';
 
     Begin
 
@@ -1570,12 +1442,17 @@ CREATE OR REPLACE PACKAGE BODY chrpp_mf007_pkg IS
 
     End;
     --
-    
-    Procedure Lista_Apontamento(   P_Nr_Ordem              In  Afko.Aufnr%Type
-                                 , P_Idex_Comp             In  Ztpp_Apt_Desvio.Index_Comp%type           
-                                 , P_Cursor                Out G_Cursor
-                                 , P_Erro_Num              Out Number
-                                 , P_Erro_Des              Out Varchar2 )
+    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+    -- Finalidade: Retornar Lista de Apontamento Realizados Por Grupo
+    -- Autor.....: Adriano Lima
+    -- Data......: 16/04/2024
+    -- Trello....: Card-343
+    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --                                          
+    Procedure Lista_Apontamento_Por_Grupo(   P_Nr_Ordem              In  Afko.Aufnr%Type
+                                           , P_Idex_Comp             In  Ztpp_Apt_Desvio.Index_Comp%type           
+                                           , P_Cursor                Out G_Cursor
+                                           , P_Erro_Num              Out Number
+                                           , P_Erro_Des              Out Varchar2 )
       Is
       
       v_Count                    Number;
@@ -1670,13 +1547,18 @@ CREATE OR REPLACE PACKAGE BODY chrpp_mf007_pkg IS
     
     --
     --
-
-    Function Fun_Calc_Generico (   P_Calc                     Number
-                                 , P_Erro_Num                 Out Number
-                                 , P_Erro_Des                 Out Varchar2
-
-                                )
+    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+    -- Finalidade: Função Genérica, Permite Novas Implementações Dentro da MF007.
+    -- Autor.....: Adriano Lima
+    -- Data......: 16/04/2024
+    -- Trello....: Card-343
+    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --                                        
+    Function Fun_Calc_Generico (   P_Calc                Number
+                                 , P_Erro_Num            Out Number
+                                 , P_Erro_Des            Out Varchar2 )
+                                 
       Return varchar2
+      
       Is
 
     Begin
