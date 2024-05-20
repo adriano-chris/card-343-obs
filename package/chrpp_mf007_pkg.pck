@@ -185,7 +185,6 @@ CREATE OR REPLACE PACKAGE CHRISERP.chrpp_mf007_pkg IS
    -- Trello....: Card-343
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --   
    Procedure Lista_Tecnica_Comp_Filho(  P_Nr_Ordem           In  Afko.Aufnr%Type
-                                      , P_Mandt              In  Afko.Mandt%Type Default '400'
                                       , P_Cursor             Out G_Cursor 
                                       , P_Erro_Num           Out Number
                                       , P_Erro_Des           Out Varchar2 ); 
@@ -1391,14 +1390,15 @@ CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf007_pkg IS
    -- Trello....: Card-343
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --   
    Procedure Lista_Tecnica_Comp_Filho(   P_Nr_Ordem                  In  Afko.Aufnr%Type
-                                       , P_Mandt                     In  Afko.Mandt%Type Default '400'
                                        , P_Cursor                    Out G_Cursor
                                        , P_Erro_Num                  Out Number
                                        , P_Erro_Des                  Out Varchar2 )
    Is
 
     C_Ordem_Sap                        Constant Varchar2(50):= 'Ordem Inválida! Não existe no SAP, verificar.';
-
+    C_Mandt                            Constant Afko.Mandt%Type:= '400';
+    
+    
     Begin
 
         Begin
@@ -1407,7 +1407,7 @@ CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf007_pkg IS
             Into Type_Afko.Rsnum
                , Type_Afko.Aufnr
            From Afko a
-          Where a.Mandt = P_Mandt
+          Where a.Mandt = C_Mandt
             And a.Aufnr = lpad(P_Nr_Ordem,12,0);
             --dbms_output.put_line(Type_Afko.Rsnum||CHR(13)|| Type_Afko.aufnr);
 
@@ -1431,7 +1431,7 @@ CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf007_pkg IS
           And a.matnr   = c.matnr
           And rsnum     = Type_Afko.Rsnum  --'0033464090'
           And a.Aufnr   = Lpad(Type_Afko.Aufnr,12,0)
-          And a.Mandt   = P_Mandt          --'400' --trocar para 400
+          And a.Mandt   = C_Mandt
           AND Ltrim(Rtrim(b.Normt)) Is Null
           Order By a.baugr;
 
