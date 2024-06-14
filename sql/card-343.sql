@@ -107,3 +107,50 @@ Insert Into chriserp.stg_desvio_comp (  mandt, contador, ordem_producao, produto
 */
 
 
+-- 14/06/2024:
+
+
+-- Alinhamento feito com a Jaque em 17/05/24
+Regras de atualização:
+
+Botão de editar...
+Só se aplica para o MESMO DEFEITO!
+
+Qtde 
+Observação
+(Mesmo) Código de defeito/cod_Desvio -  Somente efetuar update 
+--
+--
+quando atualização de componente(filho) necessário informar os parâmetros 
+
+Sq_Lote                       -- app fornence
+Terminal                      -- app fornence
+Código de defeito/cod_Desvio  
+Qtde 
+Observação
+index_comp
+
+
+Obs.: Para atualização/update tem que utilizar na claúsula o index_Comp  + os sq_lote 
+o que foi definido com o usuário é que o apontamento deve ser feito por grupo, portanto, o  index_Comp  + sq_lote
+qualquer apontamento de componente(filho), qualquer coisa diferente, apontar um novo grupo p/ que seja gerado um novo sequencial.
+
+
+
+-- VAMOS SEGUIR PARA SEGUNDA FASE DO PROJETO:
+
+
+
+
+
+
+DEFEITO PARA 
+APONTADO PARA O PAI 
+PRECISA APONTAR PARA O FILHO
+
+
+BOTÃO DE DEFEITO COMPONENTE 
+ CHAMA PROC A SER DESENVOLVIDA...
+PP007 - essa retorna apenas uma visualização(relatório)
+
+ -- continuar daqui, lembrar de corrigir a procedure que está retornando a descrição errada...
