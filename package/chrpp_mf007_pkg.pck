@@ -96,7 +96,7 @@ CREATE OR REPLACE PACKAGE CHRISERP.chrpp_mf007_pkg IS
                                              , P_Observacao      In  Varchar2
                                              --, P_Contador        In  Out Number                                   -- quando precisar editar
                                              , P_Lista_Comp      In  Varchar2                        Default Null
-                                             , P_index_comp      In  Ztpp_Apt_Desvio.Index_comp%Type Default Null -- quando for apontar por agrupamento, informar o Index
+                                             , P_index_comp      In Out Ztpp_Apt_Desvio.Index_comp%Type -- quando for apontar por agrupamento, informar o Index
                                              , P_Erro_Num        Out Number
                                              , P_Erro_Des        Out Varchar2
                                              ); 
@@ -187,7 +187,8 @@ CREATE OR REPLACE PACKAGE CHRISERP.chrpp_mf007_pkg IS
    Procedure Lista_Tecnica_Comp_Filho(  P_Nr_Ordem           In  Afko.Aufnr%Type
                                       , P_Cursor             Out G_Cursor 
                                       , P_Erro_Num           Out Number
-                                      , P_Erro_Des           Out Varchar2 ); 
+                                      , P_Erro_Des           Out Varchar2 
+                                      ); 
                                       
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
    -- Finalidade: Retornar Lista de Apontamento Realizados Por Grupo
@@ -685,7 +686,7 @@ CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf007_pkg IS
                                              , P_Observacao      In  Varchar2
                                              --, P_Contador        In  Out Number                                   -- quando precisar editar
                                              , P_Lista_Comp      In Varchar2                        Default Null
-                                             , P_index_comp      In  Ztpp_Apt_Desvio.Index_comp%Type Default Null -- quando for apontar por agrupamento, informar o Index
+                                             , P_index_comp      In Out Ztpp_Apt_Desvio.Index_comp%Type-- quando for apontar por agrupamento, informar o Index
                                              , P_Erro_Num        Out Number
                                              , P_Erro_Des        Out Varchar2
                                              )
@@ -921,12 +922,15 @@ CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf007_pkg IS
                                                       );
                                                Commit;
 
-                          --dbms_output.put_line('Componente: ' || token_rec.token);                          
+                          --dbms_output.put_line('Componente: ' || token_rec.token);                                                  
                         END IF;                                               
                       END LOOP;                                            
+                                           
                       
+                      --dbms_output.put_line('Componente: ' || T.Index_Comp);                       
+                      P_Index_Comp      := T.Index_Comp;
                     END;
-
+                      
                  Exception
                     When Others Then
                         P_Erro_Num := SqlCode;
@@ -1392,7 +1396,8 @@ CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf007_pkg IS
    Procedure Lista_Tecnica_Comp_Filho(   P_Nr_Ordem                  In  Afko.Aufnr%Type
                                        , P_Cursor                    Out G_Cursor
                                        , P_Erro_Num                  Out Number
-                                       , P_Erro_Des                  Out Varchar2 )
+                                       , P_Erro_Des                  Out Varchar2 
+                                       )
    Is
 
     C_Ordem_Sap                        Constant Varchar2(50):= 'Ordem Inválida! Não existe no SAP, verificar.';
@@ -1613,3 +1618,4 @@ CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf007_pkg IS
     End;
 
 END;
+/

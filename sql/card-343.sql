@@ -140,10 +140,6 @@ qualquer apontamento de componente(filho), qualquer coisa diferente, apontar um 
 -- VAMOS SEGUIR PARA SEGUNDA FASE DO PROJETO:
 
 
-
-
-
-
 DEFEITO PARA 
 APONTADO PARA O PAI 
 PRECISA APONTAR PARA O FILHO
@@ -153,4 +149,61 @@ BOTÃO DE DEFEITO COMPONENTE
  CHAMA PROC A SER DESENVOLVIDA...
 PP007 - essa retorna apenas uma visualização(relatório)
 
- -- continuar daqui, lembrar de corrigir a procedure que está retornando a descrição errada...
+
+
+
+ 
+--Lista_Apontamento_Por_Grupo
+ --Tem que retornar a descrição do componente, atualmente está retornando a descrição do defeito.
+  
+Retornar a descrição do compoente 
+
+
+-- EFETUAR ESSA IMPLEMENTAÇÃO NO 
+    -- Lista_Apontamento_Por_Grupo
+
+
+Select a.index_Comp As Index_Comp 
+     , r.matnr      As Componente
+     , m.maktx      As Descricao 
+From resb r
+Inner Join Mara m
+  On Lpad(r.matnr, 18, 0) = Lpad(m.matnr, 18, 0) 
+  And r.mandt = m.mandt 
+Inner Join Ztpp_Apt_Desvio a
+  On Lpad(a.componente, 18, 0) = Lpad(r.matnr, 18, 0)  
+Where m.matnr = Lpad('6068131170', 18, 0) -- 6068104322,  06067110273
+And m.mandt = '400';                           
+
+
+0624560576   CAD POLI 2L C/MONO 13% PTO C050
+6081130376   CAD MONT TR CT 3580 PTO C050
+6040128766   EIXO DO RETRATOR K3 M ALUM MOD 02
+6068131170   CJ MOLA/PLACA K3 0,23X8X2950 M(27V) SR
+6067110273   CARC MET RET C/ LOC CT C/PORCA
+0606402045   PINO PL RET CAD N90
+0606111287   CAPA PL MEC K3 PTO N236 C050
+6152110218   SCJ MECANISMO 90/67 0,45G BRONZE C090 SR
+0606224364   CAPA PL RETR K3 PTO-M
+6068104322   SCJ RODA DENT C/MOLA PL C/ A. RUID
+6062104041   GUIA PL CADARÇO SR
+6049110138   ELEMENTO DE FIXACAO TERM TR CT X6H
+1057204053   CORDONE NYLON  BRANCO TE002
+0606413042   BOTAO PL LIM INF N115 PRETO C050
+6045130379   CAD C/MONO 2860MM 2L PTO C050
+0606413041   BOTAO PL LIM SUP N115 PRETO C050
+0606496936   BOTAO PL LIM INF MENOR PRETO C050
+0606496934   BOTAO PL LIM SUP MENOR PRETO C050
+0607245914   LING INJ DOB GM PTO
+
+
+
+Criar CTE e testar...
+
+ Seguir para a próxima 2º etapa do projeto....
+
+
+
+
+
+

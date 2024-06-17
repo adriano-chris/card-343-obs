@@ -362,12 +362,9 @@ And Maquina                   = '0254'--P_Cod_Maquina
 And a.Data_Criacao = To_Char(Sysdate,'YYYYMMDD')-- filtrar apenas apontamentos do dia para OP
 And a.Sq_Lote = c.Sq_Lote
 And Index_Comp > 0;
-
-
-
-
-
 ```
+
+
 
 
 
