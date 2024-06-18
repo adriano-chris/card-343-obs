@@ -8,12 +8,13 @@
 DECLARE
     
  P_cursor                           SYS_REFCURSOR;
- V_Table_Zad                        Ztpp_Apt_Desvio_Tst%RowType;
+ V_Table_Zad                        Ztpp_Apt_Desvio%RowType;
  V_Table_Zd                         Ztpp_Desvio%RowType;
  V_Table_Plr                        Pd_Lote_Rastrea%RowType;   
     
     
 BEGIN
+  
     ------------------------------------------
     -- VISÃO SINTÉTICA COMPONENTE PAI + FILHO: 
     ------------------------------------------
@@ -27,6 +28,7 @@ BEGIN
         FETCH P_cursor INTO V_Table_Zad.maquina 
                           , V_Table_Zad.Centro_Trabalho
                           , V_Table_Zad.Contador
+                          , V_Table_Zad.index_Comp
                           , V_Table_Zad.Codigo_Defeito
                           , V_Table_Zd.Descricao
                           , V_Table_Zad.Qtde
@@ -40,6 +42,7 @@ BEGIN
         DBMS_OUTPUT.PUT_LINE( 'maquina: '              || V_Table_Zad.maquina        ||' '||
                               'Centro_Trabalho: '      || V_Table_Zad.Centro_Trabalho||' '||
                               'Contador: '             || V_Table_Zad.Contador       ||' '||
+                              'index_comp: '           || V_Table_Zad.index_Comp     ||' '||
                               'Codigo_Defeito: '       || V_Table_Zad.Codigo_Defeito ||' '||
                               'Descricao: '            || V_Table_Zd.Descricao       ||' '||
                               'Qtde: '                 || V_Table_Zad.Qtde           ||' '||
@@ -93,10 +96,10 @@ DECLARE
   P_Qtde                Number(4)                       := 10;  
   P_Observacao          Varchar2(50)                    := 'Apontamento Componente Filho';
   --P_Lista_Comp          VARCHAR2(2000)                  := '000000006081130376;000000006040128766;000000006067110273'; --;000000006040128766;000000006068131170;000000006067110273;000000000606402045;000000000606111287;000000006152110218;000000000606224364;000000006068104322;000000006062104041;000000006049110138;000000001057204053;000000000606413042;000000006045130379;000000000606413041;000000000606496936;000000000606496934;000000000607245914'; 
-  P_Lista_Comp          VARCHAR2(2000)                  := '000000006067110273;000000006040128766';
   --P_Lista_Comp          VARCHAR2(2000);
+  P_Lista_Comp          VARCHAR2(2000)                  := '000000006067110273;000000006040128766';
   P_index_comp          Ztpp_Apt_Desvio.Index_comp%Type := Null; -- (Null Flag), (Passar o índice p/ apontar por agrupamento) 
-  --P_Contador            Number                          := Null;  
+  P_Contador            Number                          := Null;  
   --
   --
   P_Erro_Num            Number(5); 
@@ -110,12 +113,14 @@ BEGIN
                                                           , P_Cod_Desvio 
                                                           , P_Qtde
                                                           , P_Observacao                                                         
-                                                          --, P_Contador
+                                                          , P_Contador
                                                           , P_Lista_Comp
                                                           , P_index_comp
                                                           , P_Erro_Num   
                                                           , P_Erro_Des );
-  DBMS_OUTPUT.PUT_LINE(P_index_comp);                                                 
+  DBMS_OUTPUT.PUT_LINE(P_Contador||CHR(13)||
+                       P_index_comp
+                       );                                                 
 
 END;
 -------------------------------------------------------------------------------------------------------------------------------------------------
