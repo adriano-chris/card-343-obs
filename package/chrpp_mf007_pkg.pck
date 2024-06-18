@@ -94,7 +94,7 @@ CREATE OR REPLACE PACKAGE CHRISERP.chrpp_mf007_pkg IS
                                              , P_Cod_Desvio      In  Varchar2
                                              , P_Qtde            In  Number
                                              , P_Observacao      In  Varchar2
-                                             --, P_Contador        In  Out Number                                   -- quando precisar editar
+                                             , P_Contador        In  Out Number                                   -- quando precisar editar
                                              , P_Lista_Comp      In  Varchar2                        Default Null
                                              , P_index_comp      In Out Ztpp_Apt_Desvio.Index_comp%Type -- quando for apontar por agrupamento, informar o Index
                                              , P_Erro_Num        Out Number
@@ -684,9 +684,9 @@ CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf007_pkg IS
                                              , P_Cod_Desvio      In  Varchar2
                                              , P_Qtde            In  Number
                                              , P_Observacao      In  Varchar2
-                                             --, P_Contador        In  Out Number                                   -- quando precisar editar
+                                             , P_Contador        In  Out Number                         -- quando precisar editar
                                              , P_Lista_Comp      In Varchar2                        Default Null
-                                             , P_index_comp      In Out Ztpp_Apt_Desvio.Index_comp%Type-- quando for apontar por agrupamento, informar o Index
+                                             , P_index_comp      In Out Ztpp_Apt_Desvio.Index_comp%Type -- quando for apontar por agrupamento, informar o Index
                                              , P_Erro_Num        Out Number
                                              , P_Erro_Des        Out Varchar2
                                              )
@@ -875,7 +875,7 @@ CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf007_pkg IS
                       ) Loop
                       
                         T.Contador                  := fun_calc_generico ( P_Calc => 1, P_Erro_Num => P_Erro_Num, P_Erro_Des => P_Erro_Des );                        
-                        --P_Contador                  := T.Contador; 
+                        
                         
                         If Reg.Componente Is Not Null Then
 
@@ -917,7 +917,7 @@ CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf007_pkg IS
                                                        , T.Usuario_Alteracao
                                                        , T.Hora_Criacao
                                                        , T.Hora_Alteracao
-                                                       , Reg.Componente
+                                                       , Trim(Reg.Componente) 
                                                        , T.Index_Comp
                                                       );
                                                Commit;
@@ -928,7 +928,8 @@ CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf007_pkg IS
                                            
                       
                       --dbms_output.put_line('Componente: ' || T.Index_Comp);                       
-                      P_Index_Comp      := T.Index_Comp;
+                      P_Contador                  := T.Contador; 
+                      P_Index_Comp                := T.Index_Comp;
                     END;
                       
                  Exception
@@ -1030,7 +1031,7 @@ CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf007_pkg IS
                              P_Cursor       Out G_Cursor)  --declarando o cursor
    Is
    Begin        
-       
+      /* 
       -- Abrindo o cursor para retornar a lista de desvios da OP por Lote
        Open P_Cursor For       
           Select Maquina
@@ -1079,9 +1080,66 @@ CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf007_pkg IS
           And a.Sq_Lote      = c.Sq_Lote
           And Index_Comp     > 0
           And Lpad(Ordem_Producao,12,0) = Lpad(P_Nr_Op,12,0)
-          And Maquina                   = P_Cod_Maquina;
-           
-            
+          And Maquina                   = P_Cod_Maquina;           
+      */      
+      -----------------------------------------------------------------------------------------------------
+      -----------------------------------------------------------------------------------------------------
+      
+       -- Alteração realizada em 18/06/2024 pelo Jefferson/Marcos, necessário fornecer Contador + Index_Comp
+       -- Abrindo o cursor para retornar a lista de desvios da OP por Lote
+       Open P_Cursor For            
+          Select Maquina
+             , a.Centro_Trabalho
+             , To_Char(Contador) Contador
+             , a.Index_Comp
+             , a.Codigo_Defeito
+             , b.Descricao
+             , a.Qtde
+             , a.Observacao
+             , a.sq_lote
+             , c.Cd_Fam Nr_Rastrea
+        From Ztpp_Apt_Desvio  a
+           , Ztpp_Desvio      b
+           , Pd_Lote_Rastrea  c
+        Where a.Mandt      = b.Mandt
+        And Codigo_Defeito = b.Cod
+        And a.Data_Criacao = To_Char(Sysdate,'YYYYMMDD') -- filtrar apenas apontamentos do dia
+        And a.Data_Criacao = To_Char(Sysdate,'YYYYMMDD') -- filtrar apenas apontamentos do dia para OP
+        And a.Sq_Lote      = c.Sq_Lote
+        And Index_Comp     = 0
+        And Lpad(Ordem_Producao,12,0) = Lpad(P_Nr_Op,12,0)
+        And Maquina                   = P_Cod_Maquina
+        --and rownum <= 1
+        
+        Union All
+  
+        ------------------------------------------
+        -- VISAO SINTETIZADA DO COMPONENTE(FILHO):
+        ------------------------------------------
+        Select Distinct(a.Maquina)
+                , a.Centro_Trabalho
+                , To_Char(Replace(a.contador, a.contador, a.index_comp)) As contador
+                , a.Index_Comp
+                , a.Codigo_Defeito
+                , b.Descricao
+                , a.Qtde
+                , a.Observacao
+                , a.sq_lote
+                , c.Cd_Fam Nr_Rastrea        
+          From Ztpp_Apt_Desvio a
+             , Ztpp_Desvio     b
+             , Pd_Lote_Rastrea c
+          Where a.Mandt      = b.Mandt
+          And Codigo_Defeito = b.Cod
+          And a.Data_Criacao = To_Char(Sysdate,'YYYYMMDD') -- filtrar apenas apontamentos do dia
+          And a.Data_Criacao = To_Char(Sysdate,'YYYYMMDD') -- filtrar apenas apontamentos do dia para OP
+          And a.Sq_Lote      = c.Sq_Lote
+          And Index_Comp     > 0
+          And Lpad(Ordem_Producao,12,0) =  Lpad(P_Nr_Op,12,0)
+          And Maquina                   =  P_Cod_Maquina;
+          --and rownum <= 1      
+      
+      
    End;
 
 

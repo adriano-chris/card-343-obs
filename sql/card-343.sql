@@ -175,6 +175,69 @@ Inner Join Ztpp_Apt_Desvio a
 Where m.matnr = Lpad('6068131170', 18, 0) -- 6068104322,  06067110273
 And m.mandt = '400';                           
 
+ Precisa retornar a descricao do componente...
+
+/*
+--
+Select a.index_Comp     As Index_Comp 
+     , a.componente     As Componente
+     , m.maktx          As Descricao 
+From ztpp_apt_desvio        a   
+Inner Join  Mara            m
+ On Lpad(a.componente, 18, 0) = Lpad(m.maktx, 18, 0)
+--From resb r
+--Inner Join Mara m
+  --On Lpad(r.matnr, 18, 0) = Lpad(m.matnr, 18, 0) 
+  --And r.mandt = m.mandt 
+--Inner Join Ztpp_Apt_Desvio a
+  --On Lpad(a.componente, 18, 0) = Lpad(r.matnr, 18, 0)   
+Where 0=0
+--And a.Data_Criacao = To_Char(Sysdate,'YYYYMMDD') -- filtrar apenas apontamentos do dia
+--And a.Data_Criacao = To_Char(Sysdate,'YYYYMMDD') -- filtrar apenas apontamentos do dia para OP
+--And Lpad(a.Ordem_Producao,12,0) = Lpad('1851685',12,0) --Lpad(P_Nr_Ordem,12,0)
+--And a.Index_Comp                = 8 --P_Idex_Comp    
+and regexp_like(a.componente, '6245102004', 'i')
+--And a.componente = Lpad('6245102004', 12, 0) 
+
+
+
+
+ Select  a.Index_Comp 
+       , a.Componente
+       , b.Descricao 
+    --Into T.Index_Comp
+      -- , T.componente      
+      -- , T.Descricao                                                                                  
+   From Ztpp_Apt_Desvio a,
+        Ztpp_Desvio b,
+        Pd_Lote_Rastrea c
+  Where a.Mandt = b.Mandt
+    And Codigo_Defeito = b.Cod
+    And a.Data_Criacao = To_Char(Sysdate,'YYYYMMDD') -- filtrar apenas apontamentos do dia
+    And a.Data_Criacao = To_Char(Sysdate,'YYYYMMDD') -- filtrar apenas apontamentos do dia para OP
+    And a.Sq_Lote = c.Sq_Lote  
+    --
+    And Lpad(Ordem_Producao,12,0) = Lpad('1851486',12,0) --Lpad(P_Nr_Ordem,12,0)
+    And a.Index_Comp              = 8 --P_Idex_Comp    
+
+
+
+Select a.index_Comp As Index_Comp 
+     , r.matnr      As Componente
+     , m.maktx      As Descricao 
+From resb r
+Inner Join Mara m
+  On Lpad(r.matnr, 18, 0) = Lpad(m.matnr, 18, 0) 
+  And r.mandt = m.mandt 
+Inner Join Ztpp_Apt_Desvio a
+  On Lpad(a.componente, 18, 0) = Lpad(r.matnr, 18, 0)  
+Where 0=0
+And m.mandt = '400'
+And a.Data_Criacao = To_Char(Sysdate,'YYYYMMDD') -- filtrar apenas apontamentos do dia
+And a.Data_Criacao = To_Char(Sysdate,'YYYYMMDD') -- filtrar apenas apontamentos do dia para OP
+And Lpad(Ordem_Producao,12,0) = Lpad('1851486',12,0) --Lpad(P_Nr_Ordem,12,0)
+And a.Index_Comp              = 8 --P_Idex_Comp      
+*/
 
 0624560576   CAD POLI 2L C/MONO 13% PTO C050
 6081130376   CAD MONT TR CT 3580 PTO C050
