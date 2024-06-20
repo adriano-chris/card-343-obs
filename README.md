@@ -53,25 +53,9 @@ CRIAR FUNCTION FUN_CALC_GENERICO
 ### Item 7
 ```sh
 PP006 
-Mostrar a quantidade total apontado de defeitos tanto para produto acabado e para componentes 9componentes apontados em grupo soma -se apenas 1):
 
--- Implementar esse objeto para retornar a lista do componentes(|Filhos)
-Procedure Lista_OP_Maquina(P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type,
-                              P_Inicio    In Pd_Lote_Rastrea.Dh_Adicionado%Type,
-                              P_Fim       In Pd_Lote_Rastrea.Dh_Adicionado%Type,
-                              P_Produto   In Pd_Lote_Rastrea.Part_No%Type,
-                              P_Nr_Op     In Pd_Lote_Op.Nr_Op%Type,
-                              P_Cursor       Out G_Cursor)
+Criado um novo objeto na package (CHRPP_MF006_PKG procedure Lista_Desvio_Com) para retornar os campos (Codigo_Defeito, Descricao e Qtde).
 
+# Aguardar os teste da aplicação e o "de acordo" Lu para seguir com a implantação....
 
--- (PK: SQ_LOTE)       
-Select * from Pd_Lote_Rastrea where Sq_Lote = '219348'
-P_Maquina    0880 
-P_Inicio     16/05/2024 16:20:14
-P_Fim        16/05/2024 16:20:14       
-P_Produto    6081128769
-P_Nr_Op     
-
-
-Parei para atuar com a melhoria de performance no card-509 referente a PP006..
 ```
