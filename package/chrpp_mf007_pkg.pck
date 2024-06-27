@@ -1451,7 +1451,7 @@ CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf007_pkg IS
    -- Data......: 16/04/2024
    -- Trello....: Card-343
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --   
-   Procedure Lista_Tecnica_Comp_Filho(   P_Nr_Ordem                  In  Afko.Aufnr%Type
+ Procedure Lista_Tecnica_Comp_Filho(   P_Nr_Ordem                  In  Afko.Aufnr%Type
                                        , P_Cursor                    Out G_Cursor
                                        , P_Erro_Num                  Out Number
                                        , P_Erro_Des                  Out Varchar2 
@@ -1484,8 +1484,8 @@ CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf007_pkg IS
       --
       --
       Open P_Cursor For
-          Select a.matnr          As Cod_SubComponente
-               , c.maktx          As Desc_Subcomponente
+          Select Distinct a.matnr   As Cod_SubComponente
+                        , c.maktx   As Desc_Subcomponente
           From resb a
              , Mara b           -- Somente itens rastreados
              , makt c
@@ -1496,7 +1496,7 @@ CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf007_pkg IS
           And a.Aufnr   = Lpad(Type_Afko.Aufnr,12,0)
           And a.Mandt   = C_Mandt
           AND Ltrim(Rtrim(b.Normt)) Is Null
-          Order By a.baugr;
+          Order By a.matnr;
 
       Exception
           When others then

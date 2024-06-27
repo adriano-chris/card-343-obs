@@ -1221,7 +1221,7 @@ PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
   -- Data........: 19/06/2024 
   -- Trello......: Card-343 
   -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --   
-  Procedure Lista_Desvios_Comp(   P_Maquina            In Pd_Lote_Rastrea.Maquina_Cod%Type
+Procedure Lista_Desvios_Comp(   P_Maquina            In Pd_Lote_Rastrea.Maquina_Cod%Type
                                 , P_Nr_Op              In Pd_Lote_OP.Nr_Op%Type
                                 , P_Data_Ini           In Pd_Lote_Rastrea.Dh_Lote%Type
                                 , P_Sq_Controle_Op     In Pd_Op_Apontamento.Sq_Controle_Op%Type
@@ -1242,7 +1242,7 @@ PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
          Inner Join Ztpp_Desvio     b
           On Codigo_Defeito = b.Cod
           And  a.Mandt      = b.Mandt
-          And a.index_Comp              > 0
+          --And a.index_Comp              > 0
           And a.Mandt                   = '400'        
           And Lpad(Ordem_Producao,12,0) = Lpad(P_Nr_Op,12,0)
           And Lpad(Maquina,5,0)         = Lpad(P_Maquina,5,0)
@@ -1262,12 +1262,18 @@ PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
           and trunc(d.dh_adicionado)  = trunc(P_Data_Ini)
           and lpad(d.maquina_cod,5,0) = lpad(P_Maquina,5,0)              
           and d.sq_controle_op        = P_Sq_Controle_Op;        
-          dbms_output.put_line(V_Count_Poa);
           
        Exception 
          When No_Data_Found Then
-          P_Erro_Num           := 1;
-          P_Erro_Des           := 'Dados não encontrados na pd_op_apontamento';
+          P_Erro_Num           := V_Count_Poa;
+          P_Erro_Des           := 'Lote não encontrados na tabela pd_op_apontamento';
+          
+          dbms_output.put_line( 'Nr_Op: '            ||P_Nr_Op          ||
+                                'Data_Ini: '         ||P_Data_Ini       ||
+                                'Maquina: '          ||P_Maquina        ||
+                                'P_Sq_Controle_Op: ' ||P_Sq_Controle_Op ||                                               
+                                'Linha: '            ||dbms_utility.format_error_backtrace );          
+          
       End;
       --
       --       
@@ -1284,7 +1290,7 @@ PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
           And  a.Mandt      = b.Mandt
           --      
           --
-          And a.index_Comp              > 0
+          --And a.index_Comp              > 0
           And a.Mandt                   = '400'
           
           And Lpad(Ordem_Producao,12,0) = Lpad(P_Nr_Op,12,0)
