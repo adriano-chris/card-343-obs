@@ -109,7 +109,7 @@ CREATE OR REPLACE PACKAGE CHRISERP.chrpp_mf006_pkg IS
    Procedure Lista_Desvios_Comp(   P_Maquina            In Pd_Lote_Rastrea.Maquina_Cod%Type
                                  , P_Nr_Op              In Pd_Lote_OP.Nr_Op%Type
                                  , P_Data_Ini           In Pd_Lote_Rastrea.Dh_Lote%Type
-                                 , P_Sq_Controle_Op     In Pd_Op_Apontamento.Sq_Controle_Op%Type
+                                 --, P_Sq_Controle_Op     In Pd_Op_Apontamento.Sq_Controle_Op%Type
                                  , P_Cursor             Out G_Cursor 
                                  , P_Erro_Num           Out Number
                                  , P_Erro_Des           Out Varchar2 );                             
@@ -630,6 +630,7 @@ CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf006_pkg IS
     --  
     ELSIF ( P_Calc = 7 ) THEN --Setor
     
+      Begin 
         With Cte_Setor As 
           ( Select f.cd_centro_custo
                  , g.cd_maquina
@@ -644,12 +645,20 @@ CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf006_pkg IS
            Into T.Setor                                                       
           From Cte_Setor cs 
           Where cs.cd_maquina = P_Maquina_Cod; 
-
+          
       IF ( T.Setor IS NOT NULL ) THEN
            RETURN T.Setor;
         Else 
-           RETURN NVL(T.Setor, ' ');           
+           T.Setor := 'TESTE'||' '||P_Maquina_Cod;          
       END IF;
+      
+      Exception
+        When No_Data_Found Then
+        dbms_output.put_line('código do erro: ' || Sqlcode || ' Msg: ' ||Sqlerrm);
+        dbms_output.put_line('Entrou aqui!!!');
+
+      
+      End;
     --
     --
     ELSIF ( P_Calc = 8 ) THEN --Dh_inicial_Turno 
@@ -674,7 +683,7 @@ CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf006_pkg IS
         Else 
            RETURN NVL(T.Dh_Inicial_Turno, '0');
       END IF;            
-    --
+    --                    
     --
     
     ELSIF ( P_Calc = 9 ) THEN --Dh_final_Turno
@@ -1206,7 +1215,7 @@ PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
             And Lpad(Ordem_Producao,12,0) = Lpad(P_Nr_Op,12,0)
             And Lpad(Maquina,5,0) = Lpad(P_Maquina,5,0)
             And a.Data_Criacao = To_Char(P_Data_Ini,'YYYYMMDD')
-            And a.index_Comp              = 0
+            And a.index_Comp   = 0
             And a.Sq_Lote in (select distinct d.sq_lote
                                 from pd_op_apontamento d
                                where trunc(d.nr_op) = trunc(Ordem_Producao)
@@ -1221,98 +1230,62 @@ PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
   -- Data........: 19/06/2024 
   -- Trello......: Card-343 
   -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --   
-Procedure Lista_Desvios_Comp(   P_Maquina            In Pd_Lote_Rastrea.Maquina_Cod%Type
+  Procedure Lista_Desvios_Comp(   P_Maquina            In Pd_Lote_Rastrea.Maquina_Cod%Type
                                 , P_Nr_Op              In Pd_Lote_OP.Nr_Op%Type
                                 , P_Data_Ini           In Pd_Lote_Rastrea.Dh_Lote%Type
-                                , P_Sq_Controle_Op     In Pd_Op_Apontamento.Sq_Controle_Op%Type
+                                --, P_Sq_Controle_Op     In Pd_Op_Apontamento.Sq_Controle_Op%Type
                                 , P_Cursor             Out G_Cursor 
                                 , P_Erro_Num           Out Number
-                                , P_Erro_Des           Out Varchar2
-                                )  
+                                , P_Erro_Des           Out Varchar2 )  
   Is    
-   V_Count_Apt                  Number; 
-   V_Count_Poa                  Number;
+  
+   V_Dt_Setup                   Varchar(100);
+   V_Dt_Formatada               Varchar2(100);
    
   Begin
   
-      Begin
-        Select Count(*)
-         Into V_Count_Apt
-         From Ztpp_Apt_Desvio       a 
-         Inner Join Ztpp_Desvio     b
-          On Codigo_Defeito = b.Cod
-          And  a.Mandt      = b.Mandt
-          --And a.index_Comp              > 0
-          And a.Mandt                   = '400'        
-          And Lpad(Ordem_Producao,12,0) = Lpad(P_Nr_Op,12,0)
-          And Lpad(Maquina,5,0)         = Lpad(P_Maquina,5,0)
-          And a.Data_Criacao            = To_Char(P_Data_Ini,'YYYYMMDD');  
-          
-       Exception 
-         When No_Data_Found Then
-          P_Erro_Num           := 1;
-          P_Erro_Des           := 'Dados não encontrados! Verificar Ztpp_Apt_Desvio + Ztpp_Desvio';               
-      End;
-      
-      Begin        
-        select distinct d.sq_lote
-         Into V_Count_Poa
-         from pd_op_apontamento d
-        where trunc(d.nr_op)          = Lpad(P_Nr_Op, 12, 0)             
-          and trunc(d.dh_adicionado)  = trunc(P_Data_Ini)
-          and lpad(d.maquina_cod,5,0) = lpad(P_Maquina,5,0)              
-          and d.sq_controle_op        = P_Sq_Controle_Op;        
-          
-       Exception 
-         When No_Data_Found Then
-          P_Erro_Num           := V_Count_Poa;
-          P_Erro_Des           := 'Lote não encontrados na tabela pd_op_apontamento';
-          
-          dbms_output.put_line( 'Nr_Op: '            ||P_Nr_Op          ||
-                                'Data_Ini: '         ||P_Data_Ini       ||
-                                'Maquina: '          ||P_Maquina        ||
-                                'P_Sq_Controle_Op: ' ||P_Sq_Controle_Op ||                                               
-                                'Linha: '            ||dbms_utility.format_error_backtrace );          
-          
-      End;
-      --
-      --       
-      Open P_Cursor For
-       Select a.Maquina
-            , a.Centro_Trabalho
-            , a.Codigo_Defeito
-            , b.Descricao
-            , Sum(a.Qtde) As Qtde
-            , a.Observacao 
-         From Ztpp_Apt_Desvio       a 
-         Inner Join Ztpp_Desvio     b
-          On Codigo_Defeito = b.Cod
-          And  a.Mandt      = b.Mandt
-          --      
+   V_Dt_Setup           := to_char(P_Data_Ini, 'dd/mm/rrrr');
+   V_Dt_Formatada       := substr(V_Dt_Setup, - 4)||substr(V_Dt_Setup, 4 , 2)||substr(V_Dt_Setup, 0 , 2);  
+    
+    Open P_Cursor For 
+     Select a.Maquina
+          , a.Centro_Trabalho
+          , a.Codigo_Defeito
+          , b.Descricao
+          , Sum(a.Qtde) As Qtde
+          , a.Observacao
+       From Ztpp_Apt_Desvio       a 
+       Inner Join Ztpp_Desvio     b
+        On Codigo_Defeito = b.Cod
+        And  a.Mandt      = b.Mandt
+        --      
+        --
+        And a.index_Comp              > 0
+        And a.Mandt                   = '400'
+              
+        And Lpad(Ordem_Producao,12,0) = Lpad(P_Nr_Op, 12, 0)
+        And Lpad(a.Maquina,5,0)       = Lpad(P_Maquina, 5, 0)
+        And a.Data_Criacao            = V_Dt_Formatada --20240619                                                   
+        --
+       Group by Maquina
+              , a.Centro_Trabalho
+              , a.Codigo_Defeito
+              , b.Descricao
+              , a.Observacao;                                            
+      Exception
+        When No_Data_Found Then
           --
-          --And a.index_Comp              > 0
-          And a.Mandt                   = '400'
-          
-          And Lpad(Ordem_Producao,12,0) = Lpad(P_Nr_Op,12,0)
-          And Lpad(Maquina,5,0)         = Lpad(P_Maquina,5,0)
-          And a.Data_Criacao            = To_Char(P_Data_Ini,'YYYYMMDD')
-          And a.Sq_Lote in ( select distinct d.sq_lote
-                               from pd_op_apontamento d
-                              where trunc(d.nr_op)          = Lpad(P_Nr_Op, 12, 0)             
-                                and trunc(d.dh_adicionado)  = trunc(P_Data_Ini)
-                                and lpad(d.maquina_cod,5,0) = lpad(P_Maquina,5,0)              
-                                and d.sq_controle_op        = P_Sq_Controle_Op )                            
-                               
-         Group by Maquina
-                , a.Centro_Trabalho
-                , a.Codigo_Defeito
-                , b.Descricao
-                , a.Observacao;   
-           
-      Exception      
-         When Others Then
-           dbms_output.put_line('código do erro: ' || Sqlcode || ' Msg: ' ||Sqlerrm);
-           dbms_output.put_line('Linha: ' || dbms_utility.format_error_backtrace);  
+         dbms_output.put_line('P_Nr_Op: '      ||P_Nr_Op        ||        
+                              'Descricao: '    ||T.Descricao    ||
+                              'Maquina: '      ||P_Maquina      ||
+                              'Data_Criacao: ' ||V_Dt_Formatada ||
+                              'P_Erro_Num: '   ||P_Erro_Num     ||
+                              'P_Erro_Des: '   ||P_Erro_Des     ||                    
+                              'Linha: '        ||dbms_utility.format_error_backtrace);  
+                         
+        When Others Then
+          dbms_output.put_line('código do erro: ' || Sqlcode || ' Msg: ' ||Sqlerrm);
+          dbms_output.put_line('Linha: ' || dbms_utility.format_error_backtrace);  
                         
   End;
   
@@ -1746,4 +1719,3 @@ Procedure Lista_Desvios_Comp(   P_Maquina            In Pd_Lote_Rastrea.Maquina_
 
 
 END;
-/
