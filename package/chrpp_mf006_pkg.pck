@@ -108,7 +108,8 @@ CREATE OR REPLACE PACKAGE CHRISERP.chrpp_mf006_pkg IS
 
    Procedure Lista_Desvios_Comp(   P_Maquina            In Pd_Lote_Rastrea.Maquina_Cod%Type
                                  , P_Nr_Op              In Pd_Lote_OP.Nr_Op%Type
-                                 , P_Data_Ini           In Pd_Lote_Rastrea.Dh_Lote%Type                                
+                                 , P_Data_Ini           In Pd_Lote_Rastrea.Dh_Lote%Type
+                                 , P_Sq_Controle_Op     In Pd_Op_Apontamento.Sq_Controle_Op%Type
                                  , P_Cursor             Out G_Cursor 
                                  , P_Erro_Num           Out Number
                                  , P_Erro_Des           Out Varchar2 );                             
@@ -1232,6 +1233,7 @@ PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
   Procedure Lista_Desvios_Comp(   P_Maquina            In Pd_Lote_Rastrea.Maquina_Cod%Type
                                 , P_Nr_Op              In Pd_Lote_OP.Nr_Op%Type
                                 , P_Data_Ini           In Pd_Lote_Rastrea.Dh_Lote%Type
+                                , P_Sq_Controle_Op     In Pd_Op_Apontamento.Sq_Controle_Op%Type
                                 , P_Cursor             Out G_Cursor 
                                 , P_Erro_Num           Out Number
                                 , P_Erro_Des           Out Varchar2 )  
