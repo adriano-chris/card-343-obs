@@ -108,8 +108,7 @@ CREATE OR REPLACE PACKAGE CHRISERP.chrpp_mf006_pkg IS
 
    Procedure Lista_Desvios_Comp(   P_Maquina            In Pd_Lote_Rastrea.Maquina_Cod%Type
                                  , P_Nr_Op              In Pd_Lote_OP.Nr_Op%Type
-                                 , P_Data_Ini           In Pd_Lote_Rastrea.Dh_Lote%Type
-                                 --, P_Sq_Controle_Op     In Pd_Op_Apontamento.Sq_Controle_Op%Type
+                                 , P_Data_Ini           In Pd_Lote_Rastrea.Dh_Lote%Type                                
                                  , P_Cursor             Out G_Cursor 
                                  , P_Erro_Num           Out Number
                                  , P_Erro_Des           Out Varchar2 );                             
@@ -1233,7 +1232,6 @@ PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
   Procedure Lista_Desvios_Comp(   P_Maquina            In Pd_Lote_Rastrea.Maquina_Cod%Type
                                 , P_Nr_Op              In Pd_Lote_OP.Nr_Op%Type
                                 , P_Data_Ini           In Pd_Lote_Rastrea.Dh_Lote%Type
-                                --, P_Sq_Controle_Op     In Pd_Op_Apontamento.Sq_Controle_Op%Type
                                 , P_Cursor             Out G_Cursor 
                                 , P_Erro_Num           Out Number
                                 , P_Erro_Des           Out Varchar2 )  
@@ -1266,6 +1264,14 @@ PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
         And Lpad(Ordem_Producao,12,0) = Lpad(P_Nr_Op, 12, 0)
         And Lpad(a.Maquina,5,0)       = Lpad(P_Maquina, 5, 0)
         And a.Data_Criacao            = V_Dt_Formatada --20240619                                                   
+        And a.Sq_lote IN ( Select Distinct(z.Sq_Lote)
+                              From ztpp_apt_desvio z
+                             Where 0=0
+                             And Lpad(z.Ordem_Producao, 12, 0) = Lpad(P_Nr_Op, 12, 0)
+                             And Lpad(z.Maquina, 5, 0)         = Lpad(P_Maquina, 5, 0)
+                             And z.Data_Criacao                = V_Dt_Formatada
+                             And z.Index_Comp                  = a.Index_Comp )
+        --
         --
        Group by Maquina
               , a.Centro_Trabalho
