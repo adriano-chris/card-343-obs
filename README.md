@@ -54,8 +54,18 @@ CRIAR FUNCTION FUN_CALC_GENERICO
 ```sh
 PP006 
 
-Criado um novo objeto na package (CHRPP_MF006_PKG procedure Lista_Desvio_Com) para retornar os campos (Codigo_Defeito, Descricao e Qtde).
+1º Criado um novo objeto na package (CHRPP_MF006_PKG procedure Lista_Desvio_Com) para retornar os campos (   Codigo_Defeito
+                                                                                                           , Descricao 
+                                                                                                           , Qtde ).
 
-# Aguardar os teste da aplicação e o "de acordo" Lu para seguir com a implantação....
+# 16/07/2024 PRIORIZADO EM 15/07/2024: REINALDO + LU
+
+pd_op_apontamento qt_contador -- qtde limite da op...
+
+defeitos (mes) filho  
+qtde máq.  subtrair do               
+
+
+qtde_realizada - Qtde(ztpp_apt_Desvio) index_Comp > 0
 
 ```
