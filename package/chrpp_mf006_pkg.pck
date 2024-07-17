@@ -13,6 +13,9 @@ CREATE OR REPLACE PACKAGE CHRISERP.chrpp_mf006_pkg IS
    -- Data........: 24/05/2024 
    -- Trello......: Card-509 
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+   ---------------
+   -- TYPE RECORD:
+   ---------------   
    Type Typ IS RECORD (   Descricao                         VARCHAR2(50) 
                         , Setor                             VARCHAR2(50)                        
                         , Sq_Maquina                        VARCHAR2(50)
@@ -25,7 +28,11 @@ CREATE OR REPLACE PACKAGE CHRISERP.chrpp_mf006_pkg IS
                         , Qtde_registrada                   NUMBER                        
                         , Tempo_Parada                      NUMBER
                         , Qtde_Desvio                       NUMBER
-                        , Tempo_Parada_Reconhecida          NUMBER(5,2) );
+                        , Tempo_Parada_Reconhecida          NUMBER(5,2) 
+                        , index_comp                        Ztpp_Apt_Desvio.Index_comp%Type
+                        , componente                        Ztpp_Apt_Desvio.Componente%Type
+                        , qt_contador                       pd_op_apontamento.qt_contador%Type
+                         );
    T    Typ;
 
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -66,9 +73,8 @@ CREATE OR REPLACE PACKAGE CHRISERP.chrpp_mf006_pkg IS
                               , P_Inicio    In Pd_Lote_Rastrea.Dh_Adicionado%Type
                               , P_Fim       In Pd_Lote_Rastrea.Dh_Adicionado%Type
                               , P_Produto   In Pd_Lote_Rastrea.Part_No%Type
-                              , P_Nr_Op     In Pd_Lote_Op.Nr_Op%Type  
-                              );
-                                                            
+                              , P_Nr_Op     In Pd_Lote_Op.Nr_Op%Type);
+                                                                                   
                               
 
 
@@ -151,14 +157,22 @@ CREATE OR REPLACE PACKAGE CHRISERP.chrpp_mf006_pkg IS
    -- Data........: 24/05/2024 
    -- Trello......: Card-509 
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-   FUNCTION Fun_Calc_Generico (  
-      P_Calc            NUMBER       
-    , P_Nr_Op           Pd_Lote_Op.Nr_Op%TYPE                 DEFAULT NULL
-    , P_Data            DATE                                  DEFAULT NULL
-    , P_Maquina_Cod     Pd_Lote_Rastrea.Maquina_Cod%TYPE      DEFAULT NULL
-    , P_produto         NUMBER                                DEFAULT NULL
-    , P_Sq_Controle_Op  NUMBER                                DEFAULT NULL
-    ) RETURN VARCHAR;                              
+   Function Fun_Calc_Generico (   P_Calc            Number       
+                                , P_Nr_Op           Pd_Lote_Op.Nr_Op%Type                 Default Null
+                                , P_Data            Date                                  Default Null
+                                , P_Maquina_Cod     Pd_Lote_Rastrea.Maquina_Cod%Type      Default Null
+                                , P_produto         Number                                Default Null
+                                , P_Sq_Controle_Op  Number                                Default Null
+                                ) Return Varchar;                               
+    
+    --
+    --
+    Procedure Lista_Apontamento_Por_Grupo(   P_Nr_Ordem              In  Afko.Aufnr%Type
+                                           --, P_Idex_Comp             In  Ztpp_Apt_Desvio.Index_Comp%type
+                                           , P_Cursor                Out G_Cursor
+                                           , P_Erro_Num              Out Number
+                                           , P_Erro_Des              Out Varchar2 );
+                                          
 
 END;
 /
@@ -194,8 +208,8 @@ CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf006_pkg IS
       V_flag_aponta_fim   Pd_Op_Apontamento.Flag_Aponta%Type;
       V_Nr_Op_Ant         Pd_Lote_Op.Nr_Op%Type;
       --
-      --      
-      
+      --
+
       Begin
         -- Flag para inserir na PD_OP_APONTAMENTO 24/01/2020, somente quando o P_Qt_Contador diferente de zero
         V_Insere := 1;
@@ -458,347 +472,560 @@ CREATE OR REPLACE PACKAGE BODY CHRISERP.chrpp_mf006_pkg IS
    --
    --
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-   -- Finalidade..: Melhoria de Performance 
+   -- Finalidade..: Melhoria de Performance
    -- Autor.......: Adriano Lima
-   -- Data........: 24/05/2024 
-   -- Trello......: Card-509 
+   -- Data........: 24/05/2024
+   -- Trello......: Card-509
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-  FUNCTION Fun_Calc_Generico (  
-      P_Calc            NUMBER                                
-    , P_Nr_Op           Pd_Lote_Op.Nr_Op%TYPE                 DEFAULT NULL
-    , P_Data            DATE                                  DEFAULT NULL
-    , P_Maquina_Cod     Pd_Lote_Rastrea.Maquina_Cod%TYPE      DEFAULT NULL
-    , P_produto         NUMBER                                DEFAULT NULL
-    , P_Sq_Controle_Op  NUMBER                                DEFAULT NULL 
-    ) RETURN VARCHAR 
-    
-    IS
-  
-     V_Dt_Setup                        VARCHAR2(100);
-     V_Dt_Formatada                    VARCHAR2(100);
+  FUNCTION Fun_Calc_Generico (
+        P_Calc            NUMBER
+      , P_Nr_Op           Pd_Lote_Op.Nr_Op%TYPE                 DEFAULT NULL
+      , P_Data            DATE                                  DEFAULT NULL
+      , P_Maquina_Cod     Pd_Lote_Rastrea.Maquina_Cod%TYPE      DEFAULT NULL
+      , P_produto         NUMBER                                DEFAULT NULL
+      , P_Sq_Controle_Op  NUMBER                                DEFAULT NULL
+      ) RETURN VARCHAR
+
+      IS
+
+       V_Dt_Setup                        VARCHAR2(100);
+       V_Dt_Formatada                    VARCHAR2(100);
+
+    Begin
+
+      If ( P_Calc = 1 ) Then
+
+        Begin
+            Select b.maktx    -- descricao
+              Into T.Descricao
+             From  Makt b
+            Where 0=0
+            And b.Matnr = Lpad(P_Produto, 18, 0);
+
+            If ( T.Descricao Is Not Null ) Then
+               Return T.Descricao;
+            End If;
+        Exception
+          When No_Data_Found Then
+           dbms_output.put_line('P_Calc: '   ||P_Calc      ||
+                                'Descricao: '||T.Descricao ||
+                                'Produto: '  ||P_Produto   ||
+                                'Linha: '    ||dbms_utility.format_error_backtrace);
+
+          When Others Then
+           dbms_output.put_line('Código do Erro: ' || Sqlcode || ' MSG: ' ||Sqlerrm);
+           dbms_output.put_line('Linha: ' || dbms_utility.format_error_backtrace);
+
+        End;
+      --
+      --
+      Elsif ( P_Calc = 2 ) Then
+
+        Begin
+            select sum(c.qtde_etiq) As qtde_registrada
+                Into T.Qtde_registrada
+                  from pd_etiquetas_vw c
+                 where c.nr_op       = P_Nr_Op
+                   and c.data        = to_date(P_Data, 'dd/mm/rrrr')
+                   and c.maquina_cod = P_Maquina_Cod
+                   and c.sq_lote In ( Select distinct d.sq_lote
+                                       From pd_op_apontamento d
+                                      Where trunc(d.nr_op)          = To_Char(P_Nr_Op)
+                                        And trunc(d.dh_adicionado)  = to_date(P_Data, 'dd/mm/rrrr')
+                                        And lpad(d.maquina_cod,5,0) = Lpad(P_Maquina_Cod, 5, 0)
+                                        And d.sq_controle_op        = P_Sq_Controle_Op
+                                        );
+
+            If (Nvl( T.Qtde_registrada, 0 ) Is Not Null ) Then
+                 Return Nvl(T.Qtde_registrada, 0);
+             Else
+                 Return Nvl(T.Qtde_registrada, 0);
+            End If;
+        Exception
+          When No_Data_Found Then
+           dbms_output.put_line('Calc: '             ||P_Calc            ||
+                                'Qtde_registrada: '  ||T.Qtde_registrada ||
+                                'Nr_Op: '            ||P_Nr_Op           ||
+                                'Data: '             ||P_Data            ||
+                                'Maquina_Cod: '      ||P_Maquina_Cod     ||
+                                'Sq_Controle_Op: '   ||P_Sq_Controle_Op  ||
+                                'Linha: '            ||dbms_utility.format_error_backtrace);
+
+          When Others Then
+           dbms_output.put_line('Código do Erro: ' || Sqlcode || ' MSG: ' ||Sqlerrm);
+           dbms_output.put_line('Linha: ' || dbms_utility.format_error_backtrace);
+
+        End;
+        --
+        --
+      Elsif ( P_Calc = 3 ) Then  --Tempo_Parada
+
+        Begin
+
+           V_Dt_Setup           := to_char(P_Data, 'dd/mm/rrrr');
+           V_Dt_Formatada       := substr(V_Dt_Setup, - 4)  ||
+                                   substr(V_Dt_Setup, 4 , 2)||
+                                   substr(V_Dt_Setup, 0 , 2);
+
+
+            Select Nvl(Sum(Round(((To_Date(To_Char(Ltrim(Rtrim(Hora_Final))),'HH24:MI:SS') -
+                               To_Date(To_Char(Hora_Inicial),'HH24:MI:SS'))  * 24 ) * 60,2)), 0 ) As Tempo_Parada
+                Into T.Tempo_Parada
+                  From Ztpp_Apontamento z
+                 Where z.Ordem              = To_Char(Lpad(P_Nr_Op, 12, 0))
+                   And Lpad(z.Maquina,5,0)  = Lpad(P_Maquina_Cod,5,0)
+                   And z.Mandt              = '400'
+                   And z.Data_Inicial       = V_Dt_Formatada
+                   And z.Sq_lote            In  ( Select Distinct d.sq_lote
+                                                     From pd_op_apontamento d
+                                                    Where 0=0
+                                                     And trunc(d.nr_op)          = To_Char(P_Nr_Op)
+                                                     And trunc(d.dh_adicionado)  = to_date(P_Data)
+                                                     And lpad(d.maquina_cod,5,0) = lpad(P_Maquina_Cod,5,0)
+                                                     And d.sq_controle_op        = P_Sq_Controle_Op );
+
+
+            If ( T.Tempo_Parada Is Not Null ) Then
+                 Return T.Tempo_Parada;
+              Else
+                 Return NVL(T.Tempo_Parada, ' ');
+            End If;
+
+        Exception
+          When No_Data_Found Then
+           dbms_output.put_line('P_Calc: '           ||P_Calc         ||
+                                'Tempo_Parada: '     ||T.Tempo_Parada ||
+                                'P_Nr_Op: '          ||P_Nr_Op        ||
+                                'P_Maquina_Cod: '    ||P_Maquina_Cod  ||
+                                'Data_Inicial: '     ||V_Dt_Formatada ||
+                                'Linha: '            ||dbms_utility.format_error_backtrace);
+
+          When Others Then
+           dbms_output.put_line('Código do Erro: ' || Sqlcode || ' MSG: ' ||Sqlerrm);
+           dbms_output.put_line('Linha: ' || dbms_utility.format_error_backtrace);
+
+        End;
+      --
+      --
+      Elsif ( P_Calc = 4 ) Then  --Data_lib_OP
+
+         Begin
+           ---------------------------------------------------------------------------------------------------------
+           -- JCDS: utilizada para armazenar o status dos documentos de controle de custos.                       --
+           -- Utilize a transacao BS23 para visualizar os status do sistema.                                      --
+           -- Na tabela TJ02T (Tabela de Status), voce pode encontrar descrices e detalhes dos codigos de status. --
+           ---------------------------------------------------------------------------------------------------------
+               Select
+                  TO_Char(
+                   Max(To_Date(
+                       Substr(j.udate, -2) || '/'   ||
+                       Substr(j.udate, 5, 2) || '/' ||
+                       Substr(j.udate, 1, 4) || ' ' ||       -- Data da Ultima Modificacao
+                       Substr(j.utime, 0, 2) || ':' ||       -- Hora da Ultima Modificacao
+                       Substr(j.utime, 3, 2) || ':' ||
+                       Substr(j.utime, 5, 2), 'dd/mm/yyyy hh24:mi:ss')),
+                   'dd/mm/yyyy hh24:mi:ss') AS Max_Data_lib_Op
+                  Into T.Data_Lib_Op
+              From jcds j                                    -- Tabela de Status Ordem de Producao
+              Where 0=0
+                And j.objnr = 'OR' || lpad(P_Nr_Op, 12, '0') -- Ordem de Producao/(Numero do Objeto)
+                And j.stat  = 'I0002'                        -- Codigo de Status
+                And j.inact <> 'X'                           -- Indicador de Status Inativo
+                And j.mandt = '400';                         -- Define a Particao Logica Dentro do Sist.
+                --
+                --
+                If ( T.Data_Lib_Op Is Not Null ) Then
+                 Return T.Data_Lib_Op;
+                 dbms_output.put_line('T.Data_Lib_Op'||' '||T.Data_Lib_Op);
+                End If;
+
+        Exception
+          When No_Data_found Then
+           dbms_output.put_line('P_Calc: '      ||P_Calc       ||' '||
+                                'Data_Lib_Op: ' ||T.Data_Lib_Op||' '||
+                                'Nr_Op: '       ||P_Nr_Op      ||' '||
+                                'Linha: '       ||dbms_utility.format_error_backtrace);
+          When Others Then
+           dbms_output.put_line('Código do Erro: ' || Sqlcode || ' MSG: ' ||Sqlerrm);
+           dbms_output.put_line('Linha: ' || dbms_utility.format_error_backtrace);
+         End;
+      --
+      --
+      Elsif ( P_Calc = 5 ) THEN  -- implementacao da subtracao da qtde op - qtde_apontada
+       --Null;
+       Begin
+        --      
+         Select Sum(poa.qt_contador) As qt_contador
+          Into T.qt_contador
+           From pd_op_apontamento     poa --(PK: MAQUINA_COD, NR_OP, SQ_OP_APONTA)
+         Where 0=0
+          And poa.nr_op       = Lpad(P_Nr_Op, 12, 0)
+          And poa.maquina_cod = P_Maquina_Cod 
+          And poa.flag_aponta = 'F'
+         Order By poa.dh_adicionado;
          
-  BEGIN  
-                 
-    IF (P_Calc = 1) THEN
-    
-      SELECT b.maktx    -- descricao
-        INTO T.Descricao
-       FROM  Makt b
-      WHERE 0=0
-      AND b.Matnr = Lpad(P_Produto, 18, 0); 
-     
-     
-     IF ( T.Descricao IS NOT NULL) THEN
-        RETURN T.Descricao;     
-     END IF;
-    --
-    --
-    ELSIF (P_Calc = 2) THEN    
+         --dbms_output.put_line('T.qt_contador: '||T.qt_contador);
+         
+         If ( T.qt_contador Is Not Null ) Then
+              Return T.qt_contador;
+              --dbms_output.put_line('T.qt_contador'||' '||T.qt_contador);
+         End If;
+         
+       Exception 
+         When No_Data_Found Then
+           dbms_output.put_line('P_Calc: '||P_Calc                      ||chr(13)||
+                                'T.qt_contador: ' ||T.qt_contador       ||chr(13)||
+                                'P_Nr_Op: '       ||Lpad(P_Nr_Op, 12, 0)||chr(13)||
+                                'P_Maquina_Cod: ' ||P_Maquina_Cod       ||chr(13)||
+                                'código do erro: '||Sqlcode             ||chr(13)||
+                                'Msg: '           ||Sqlerrm             ||chr(13)||
+                                 dbms_utility.format_error_backtrace);
+       
+       End;
 
-        select sum(c.qtde_etiq) As qtde_registrada
-            Into T.Qtde_registrada  
-              from pd_etiquetas_vw c  
-             where c.nr_op       = P_Nr_Op
-               and c.data        = to_date(P_Data, 'dd/mm/rrrr')
-               and c.maquina_cod = P_Maquina_Cod
-               and c.sq_lote In ( Select distinct d.sq_lote
-                                   From pd_op_apontamento d
-                                  Where trunc(d.nr_op)          = To_Char(P_Nr_Op)
-                                    And trunc(d.dh_adicionado)  = to_date(P_Data, 'dd/mm/rrrr') 
-                                    And lpad(d.maquina_cod,5,0) = Lpad(P_Maquina_Cod, 5, 0)    
-                                    And d.sq_controle_op        = P_Sq_Controle_Op  
-                                    );
-
-        IF (Nvl(T.Qtde_registrada, 0) IS NOT NULL) THEN
-           RETURN Nvl(T.Qtde_registrada, 0);     
-         Else
-           RETURN Nvl(T.Qtde_registrada, 0);
-           
-        END IF;
       --
       --
-      ELSIF ( P_Calc = 3 ) THEN  --Tempo_Parada       
-      
-         V_Dt_Setup           := to_char(P_Data, 'dd/mm/rrrr');
-         V_Dt_Formatada       := substr(V_Dt_Setup, - 4)  ||
-                                 substr(V_Dt_Setup, 4 , 2)||
-                                 substr(V_Dt_Setup, 0 , 2);
-                           
-      
-          Select Nvl(Sum(Round(((To_Date(To_Char(Ltrim(Rtrim(Hora_Final))),'HH24:MI:SS') -
-                             To_Date(To_Char(Hora_Inicial),'HH24:MI:SS'))  * 24 ) * 60,2)), 0 ) As Tempo_Parada                       
-              Into T.Tempo_Parada                                                                      
-                From Ztpp_Apontamento z
-               Where z.Ordem 		          = To_Char(Lpad(P_Nr_Op, 12, 0))    
-                 And Lpad(z.Maquina,5,0)  = Lpad(P_Maquina_Cod,5,0) 
-                 And z.Mandt        		  = '400'
-                 And z.Data_Inicial 		  = V_Dt_Formatada          
-                 And z.Sq_lote            In  ( Select Distinct d.sq_lote
-                                                   From pd_op_apontamento d
-                                                  Where 0=0
-                                                   And trunc(d.nr_op) 			   = To_Char(P_Nr_Op)                
-                                                   And trunc(d.dh_adicionado)  = to_date(P_Data)                 
-                                                   And lpad(d.maquina_cod,5,0) = lpad(P_Maquina_Cod,5,0)
-                                                   And d.sq_controle_op 		   = P_Sq_Controle_Op );                
-                                            
-            
-        IF ( T.Tempo_Parada IS NOT NULL ) THEN
-             RETURN T.Tempo_Parada;
-          Else 
-             RETURN NVL(T.Tempo_Parada, ' ');   
-        
-        END IF;
-    --
-    --
-    ELSIF ( P_Calc = 4 ) THEN  --Data_lib_OP
-                     
-        
-        Select Substr(udate, -2)  ||'/'||
-               Substr(udate, 5, 2)||'/'||
-               Substr(udate, 1, 4)||' '||
-               --, udate
-               Substr(utime, 0, 2)||':'||
-               Substr(utime, 3, 2)||':'||
-               Substr(utime, 5, 2) 
-             --,utime
-        Into T.Data_Lib_Op 
-        from jcds              --tabela de status ordem de producao
-        where 0=0 
-         And objnr = 'OR'||lpad(P_Nr_Op,12,0) --Ordem de Producao
-         And stat  =  'I0002' 
-         And inact <> 'X' 
-         And mandt = '400';
-        
-        IF ( T.Data_Lib_Op IS NOT NULL ) THEN
-         RETURN T.Data_Lib_Op;     
-        END IF;                     
-    --
-    --
-    /*
-    ELSIF ( P_Calc = 5 ) THEN  -- Sq_Lote
-    
-        select sum(c.qtde_etiq) 
-            Into T.sq_lote 
-              from pd_etiquetas_vw c  
-             where c.nr_op       = P_Nr_Op
-               and c.data        = to_date(P_Data, 'dd/mm/rrrr')
-               and c.maquina_cod = P_Maquina_Cod
-               and c.sq_lote In ( Select distinct d.sq_lote
-                                 From pd_op_apontamento d
-                                Where trunc(d.nr_op)          = P_Nr_Op          
-                                  And trunc(d.dh_adicionado)  = to_date(P_Data, 'dd/mm/rrrr')
-                                  And lpad(d.maquina_cod,5,0) = Lpad(P_Maquina_Cod, 5, 0)    
-                                  And d.sq_controle_op        = P_Sq_Controle_Op  
-                                  );
+      Elsif ( P_Calc = 6 ) Then --qtde_desvio
 
-      IF (T.sq_lote IS NOT NULL) THEN
-         RETURN T.sq_lote;     
-        Else
-           RETURN Nvl(T.sq_lote, 0);           
-      END IF;
-    */      
-    --
-    --
-    ELSIF ( P_Calc = 6 ) THEN --qtde_desvio    
-    
-    
-         V_Dt_Setup           := to_char(P_Data, 'dd/mm/rrrr');
-         V_Dt_Formatada       := substr(V_Dt_Setup, - 4)  ||
-                                 substr(V_Dt_Setup, 4 , 2)||
-                                 substr(V_Dt_Setup, 0 , 2);
-    
-        Select Nvl(Sum(Qtde), 0) As Qtde
-          Into T.Qtde_Desvio
-        From Ztpp_Apt_Desvio e
-       Where Trunc(e.Ordem_Producao) = Lpad(P_Nr_Op, 12, '0')                   
-         And lpad(e.Maquina,5,0)     = Lpad(P_Maquina_Cod, 5, 0) 
-         And e.Data_Criacao          = V_Dt_Formatada 
-         and e.mandt                 = '400'
-         and e.sq_lote in ( select distinct d.sq_lote
-                              from pd_op_apontamento d
-                             where trunc(d.nr_op)          = Lpad(P_Nr_Op, 12, '0') 
-                               and trunc(d.dh_adicionado)  = to_date(P_Data, 'dd/mm/rrrr') 
-                               and lpad(d.maquina_cod,5,0) = Lpad(P_Maquina_Cod, 5, 0) 
-                               );
-                               
-      IF ( T.Qtde_Desvio Is Not Null ) THEN
-           RETURN T.Qtde_Desvio;            
-       Else 
-           RETURN NVL(T.Qtde_Desvio, ' ');           
-      END IF;          
-    --
-    --  
-    ELSIF ( P_Calc = 7 ) THEN --Setor
-    
-      Begin 
-        With Cte_Setor As 
-          ( Select f.cd_centro_custo
-                 , g.cd_maquina
-            From Tg_Maq_Ct_Terminal f
-            Inner Join Tg_Maquina   g
-              On f.sq_maquina = g.sq_maquina  
-           ) Select distinct decode( cs.cd_centro_custo, '669', 'RETRATOR'
-                                                       , '672', 'FECHO'
-                                                       , '674', 'FECHO'
-                                                       , '662', 'REGULADOR DE ALTURA'
-                                                       , '690', 'GERADOR DE GÁS' )
-           Into T.Setor                                                       
-          From Cte_Setor cs 
-          Where cs.cd_maquina = P_Maquina_Cod; 
-          
-      IF ( T.Setor IS NOT NULL ) THEN
-           RETURN T.Setor;
-        Else 
-           T.Setor := 'TESTE'||' '||P_Maquina_Cod;          
-      END IF;
-      
-      Exception
-        When No_Data_Found Then
-        dbms_output.put_line('código do erro: ' || Sqlcode || ' Msg: ' ||Sqlerrm);
-        dbms_output.put_line('Entrou aqui!!!');
+         Begin
 
-      
-      End;
-    --
-    --
-    ELSIF ( P_Calc = 8 ) THEN --Dh_inicial_Turno 
-          
-        Select j.sq_maquina  
-           Into T.sq_maquina 
-           from Tg_Maquina j            
-          where j.cd_maquina = P_Maquina_Cod;                                
-        --
-        --
-        Select i.Dh_inicial_Turno     
-          Into T.Dh_Inicial_Turno
-        From Tg_Turno_Intervalo h
-        Inner Join Tg_Turno     i 
-           On h.cd_turno   = i.cd_turno
-         Where h.cd_turno  = 1
-        And h.sq_maquina    = T.sq_maquina;
-        -- 
-      IF ( T.Dh_Inicial_Turno Is Not Null ) THEN           
-      
-           Return T.Dh_Inicial_Turno;
-        Else 
-           RETURN NVL(T.Dh_Inicial_Turno, '0');
-      END IF;            
-    --                    
-    --
-    
-    ELSIF ( P_Calc = 9 ) THEN --Dh_final_Turno
-          
-        Select j.sq_maquina  
-           Into T.sq_maquina 
-           from Tg_Maquina j            
-          where j.cd_maquina = P_Maquina_Cod;                                
-        --
-        --
-        Select i.Dh_final_Turno       
-          Into T.Dh_Final_Turno
-        From Tg_Turno_Intervalo h
-        Inner Join Tg_Turno     i 
-           On h.cd_turno   = i.cd_turno
-         Where h.cd_turno  = 1
-        And h.sq_maquina    = T.sq_maquina;
-        -- 
-      IF ( T.Dh_Final_Turno Is Not Null ) THEN           
-      
-           Return T.Dh_Final_Turno;
-        Else 
-           RETURN NVL(T.Dh_Final_Turno, '0' );
-      END IF;                                     
-      --               
-    ELSIF ( P_Calc = 10 ) THEN --T.Dh_Inicial_Intervalo 
-          
-        Select j.sq_maquina  
-           Into T.sq_maquina 
-           from Tg_Maquina j            
-          where j.cd_maquina = P_Maquina_Cod;                                
-        --
-        --
-        Select h.dh_inicial_intervalo
-          Into T.Dh_Inicial_Intervalo 
-        From Tg_Turno_Intervalo h
-        Inner Join Tg_Turno     i 
-           On h.cd_turno   = i.cd_turno
-         Where h.cd_turno  = 1
-        And h.sq_maquina    = T.sq_maquina;
-        -- 
-      IF ( T.Dh_Inicial_Intervalo Is Not Null ) THEN           
-      
-           Return T.Dh_Inicial_Intervalo;
-        Else 
-           RETURN T.Dh_Inicial_Intervalo ;
-      END IF;
-      --              
-    ELSIF ( P_Calc = 11 ) THEN --T.Dh_Final_Intervalo 
-          
-        Select j.sq_maquina  
-           Into T.sq_maquina 
-           from Tg_Maquina j            
-          where j.cd_maquina = P_Maquina_Cod;                                
-        --
-        --
-        Select h.Dh_Final_Intervalo
-          Into T.Dh_Final_Intervalo 
-        From Tg_Turno_Intervalo h
-        Inner Join Tg_Turno     i 
-           On h.cd_turno   = i.cd_turno
-         Where h.cd_turno  = 1
-        And h.sq_maquina    = T.sq_maquina;
-        -- 
-      IF ( T.Dh_Final_Intervalo Is Not Null ) THEN           
-      
-           Return T.Dh_Final_Intervalo;
-        Else 
-           RETURN T.Dh_Final_Intervalo;
-      END IF;                   
-    --
-    --
-    ELSE      
-        DBMS_OUTPUT.PUT_LINE('------------------');
-        T.Qtde_registrada  := NULL;
-    END IF;
-    RETURN T.Qtde_registrada  ;
-    
-  EXCEPTION 
-    WHEN OTHERS THEN  
-     DBMS_OUTPUT.PUT_LINE('CODIGO DO ERRO: ' || SQLCODE || ' MSG: ' ||SQLERRM);
-     DBMS_OUTPUT.PUT_LINE('LINHA: ' || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE);
-    RETURN T.Qtde_registrada;
-    
-  END Fun_Calc_Generico; 
+               V_Dt_Setup           := to_char(P_Data, 'dd/mm/rrrr');
+               V_Dt_Formatada       := substr(V_Dt_Setup, - 4)  ||
+                                       substr(V_Dt_Setup, 4 , 2)||
+                                       substr(V_Dt_Setup, 0 , 2);
 
--- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
--- Finalidade..: Melhoria de Performance 
--- Autor.......: Adriano Lima
--- Data........: 24/05/2024 
--- Trello......: Card-509 
--- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
-                          , P_Inicio    In Pd_Lote_Rastrea.Dh_Adicionado%Type
-                          , P_Fim       In Pd_Lote_Rastrea.Dh_Adicionado%Type
-                          , P_Produto   In Pd_Lote_Rastrea.Part_No%Type
-                          , P_Nr_Op     In Pd_Lote_Op.Nr_Op%Type )
-                                                          
-   IS
-    
-    C_DDL                 Constant Varchar2(100):= 'Truncate table chriserp.Lista_Op_Maq';    
+            Select Nvl(Sum(Qtde), 0) As Qtde
+              Into T.Qtde_Desvio
+            From Ztpp_Apt_Desvio e
+           Where Trunc(e.Ordem_Producao) = Lpad(P_Nr_Op, 12, '0')
+             And lpad(e.Maquina,5,0)     = Lpad(P_Maquina_Cod, 5, 0)
+             And e.Data_Criacao          = V_Dt_Formatada
+             and e.mandt                 = '400'
+             and e.sq_lote in ( select distinct d.sq_lote
+                                  from pd_op_apontamento d
+                                 where trunc(d.nr_op)          = Lpad(P_Nr_Op, 12, '0')
+                                   and trunc(d.dh_adicionado)  = to_date(P_Data, 'dd/mm/rrrr')
+                                   and lpad(d.maquina_cod,5,0) = Lpad(P_Maquina_Cod, 5, 0)
+                                   and d.Sq_Controle_Op        = P_Sq_Controle_Op);
 
-   BEGIN         
-     
+            If ( T.Qtde_Desvio Is Not Null ) Then
+                 Return T.Qtde_Desvio;
+             Else
+                 Return NVL(T.Qtde_Desvio, ' ');
+            End If;
+
+         Exception
+           When No_Data_Found Then
+            dbms_output.put_line('P_Calc: '      ||P_Calc        ||
+                                 'Qtde_Desvio: ' ||T.Qtde_Desvio ||
+                                 'Nr_Op: '       ||P_Nr_Op       ||
+                                 'Maquina_Cod: ' ||P_Maquina_Cod ||
+                                 'Data_Criacao: '||V_Dt_Formatada||
+                                 'Linha: '       ||dbms_utility.format_error_backtrace);
+           When Others Then
+            dbms_output.put_line('Código do Erro: ' || Sqlcode || ' MSG: ' ||Sqlerrm);
+            dbms_output.put_line('Linha: ' || dbms_utility.format_error_backtrace);
+
+         End;
+      --
+      --
+      Elsif ( P_Calc = 7 ) Then --Setor
+
+         Begin
+            With Cte_Setor As
+              ( Select f.cd_centro_custo
+                     , g.cd_maquina
+                From Tg_Maq_Ct_Terminal f
+                Inner Join Tg_Maquina   g
+                  On f.sq_maquina = g.sq_maquina
+               ) Select distinct decode( cs.cd_centro_custo, '669', 'RETRATOR'
+                                                           , '672', 'FECHO'
+                                                           , '674', 'FECHO'
+                                                           , '662', 'REGULADOR DE ALTURA'
+                                                           , '690', 'GERADOR DE GÁS' ) As Setor
+               Into T.Setor
+              From Cte_Setor cs
+              Where cs.cd_maquina = P_Maquina_Cod;
+
+            If ( T.Setor Is Not Null ) Then
+                Return T.Setor;
+            End If;
+
+         Exception
+           When No_Data_Found Then
+            dbms_output.put_line('P_Calc: '     ||P_Calc       ||
+                                 'Setor: '      ||T.Setor      ||
+                                 'Maquina_Cod ' ||P_Maquina_Cod||
+                                 'Linha: '      ||dbms_utility.format_error_backtrace);
+           When Others Then
+            dbms_output.put_line('Código do Erro: ' || Sqlcode || ' MSG: ' ||Sqlerrm);
+            dbms_output.put_line('Linha: ' || dbms_utility.format_error_backtrace);
+
+         End;
+      --
+      --
+      Elsif ( P_Calc = 8 ) Then --Dh_inicial_Turno
+
+         Begin
+
+            Select j.sq_maquina
+               Into T.sq_maquina
+             from Tg_Maquina j
+            where j.cd_maquina = P_Maquina_Cod;
+         Exception
+           when No_Data_Found Then
+            dbms_output.put_line('P_Calc: '               ||P_Calc        ||
+                                 'Sq_maquina: '           ||T.sq_maquina  ||
+                                 'Maquina_Cod: '          ||P_Maquina_Cod ||
+                                 'Linha: '                ||dbms_utility.format_error_backtrace);
+
+         End;
+         --
+         --
+         Begin
+
+            Select i.Dh_inicial_Turno
+              Into T.Dh_Inicial_Turno
+             From Tg_Turno_Intervalo h
+            Inner Join Tg_Turno     i
+               On h.cd_turno   = i.cd_turno
+             Where h.cd_turno  = 1
+            And h.sq_maquina   = T.sq_maquina;
+            --
+            --
+            If ( T.Dh_Inicial_Turno Is Not Null ) THEN
+                 Return T.Dh_Inicial_Turno;
+            End If;
+
+         Exception
+           When No_Data_Found Then
+            dbms_output.put_line('P_Calc: '      ||P_Calc       ||
+                                 'Setor: '       ||T.Setor      ||
+                                 'Maquina_Cod: ' ||P_Maquina_Cod||
+                                 'Sq_maquina: '  ||T.sq_maquina ||
+                                 'Linha: '      ||dbms_utility.format_error_backtrace);
+
+           When Others Then
+            dbms_output.put_line('Código do Erro: ' || Sqlcode || ' MSG: ' ||Sqlerrm);
+            dbms_output.put_line('Linha: ' || dbms_utility.format_error_backtrace);
+
+         End;
+      --
+      --
+      ELSIF ( P_Calc = 9 ) THEN --Dh_final_Turno
+
+       Begin
+          Select j.sq_maquina
+             Into T.sq_maquina
+             from Tg_Maquina j
+            where j.cd_maquina = P_Maquina_Cod;
+       Exception
+         when No_Data_Found Then
+          dbms_output.put_line('P_Calc: '               ||P_Calc                 ||
+                               'Sq_maquina: '           ||T.sq_maquina           ||
+                               'Maquina_Cod: '          ||P_Maquina_Cod          ||
+                               'Linha: '                ||dbms_utility.format_error_backtrace);
+
+       End;
+       --
+       --
+       Begin
+          Select i.Dh_final_Turno
+            Into T.Dh_Final_Turno
+          From Tg_Turno_Intervalo h
+          Inner Join Tg_Turno     i
+             On h.cd_turno   = i.cd_turno
+           Where h.cd_turno  = 1
+          And h.sq_maquina    = T.sq_maquina;
+          --
+          --
+          If ( T.Dh_Final_Turno Is Not Null ) Then
+               Return T.Dh_Final_Turno;
+          End If;
+
+        Exception
+          When No_Data_Found Then
+            dbms_output.put_line('P_Calc: '         ||P_Calc           ||
+                                 'Dh_Final_Turno: ' ||T.Dh_Final_Turno ||
+                                 'Maquina_Cod: '    ||P_Maquina_Cod    ||
+                                 'Sq_maquina: '     ||T.sq_maquina     ||
+                                 'Linha: '          ||dbms_utility.format_error_backtrace);
+
+           When Others Then
+            dbms_output.put_line('Código do Erro: ' || Sqlcode || ' MSG: ' ||Sqlerrm);
+            dbms_output.put_line('Linha: ' || dbms_utility.format_error_backtrace);
+
+       End;
+      --
+      --
+      ELSIF ( P_Calc = 10 ) THEN --T.Dh_Inicial_Intervalo
+
+        Begin
+          Select j.sq_maquina
+             Into T.sq_maquina
+             from Tg_Maquina j
+            where j.cd_maquina = P_Maquina_Cod;
+        Exception
+         when No_Data_Found Then
+            dbms_output.put_line('P_Calc: '               ||P_Calc                 ||
+                                 'Sq_maquina: '           ||T.sq_maquina           ||
+                                 'Maquina_Cod: '          ||P_Maquina_Cod          ||
+                                 'Linha: '                ||dbms_utility.format_error_backtrace);
+
+        End;
+        --
+        --
+        Begin
+          Select h.dh_inicial_intervalo
+            Into T.Dh_Inicial_Intervalo
+          From Tg_Turno_Intervalo h
+          Inner Join Tg_Turno     i
+             On h.cd_turno   = i.cd_turno
+           Where h.cd_turno  = 1
+          And h.sq_maquina    = T.sq_maquina;
+          --
+          --
+          If ( T.Dh_Inicial_Intervalo Is Not Null ) Then
+               Return T.Dh_Inicial_Intervalo;
+          End If;
+
+        Exception
+          When No_Data_Found Then
+            dbms_output.put_line('P_Calc: '               ||P_Calc                 ||
+                                 'Dh_Inicial_Intervalo: ' ||T.Dh_Inicial_Intervalo ||
+                                 'Maquina_Cod: '          ||P_Maquina_Cod          ||
+                                 'Sq_maquina: '           ||T.sq_maquina           ||
+                                 'Linha: '                ||dbms_utility.format_error_backtrace);
+
+           When Others Then
+            dbms_output.put_line('Código do Erro: ' || Sqlcode || ' MSG: ' ||Sqlerrm);
+            dbms_output.put_line('Linha: ' || dbms_utility.format_error_backtrace);
+
+        End;
+      --
+      --
+      Elsif ( P_Calc = 11 ) Then --T.Dh_Final_Intervalo
+
+        Begin
+            Select j.sq_maquina
+               Into T.sq_maquina
+               from Tg_Maquina j
+              where j.cd_maquina = P_Maquina_Cod;
+        Exception
+         when No_Data_Found Then
+            dbms_output.put_line('P_Calc: '               ||P_Calc                 ||
+                                 'Sq_maquina: '           ||T.sq_maquina           ||
+                                 'Maquina_Cod: '          ||P_Maquina_Cod          ||
+                                 'Linha: '                ||dbms_utility.format_error_backtrace);
+
+        End;
+        --
+        --
+        Begin
+          Select h.Dh_Final_Intervalo
+            Into T.Dh_Final_Intervalo
+          From Tg_Turno_Intervalo h
+          Inner Join Tg_Turno     i
+             On h.cd_turno   = i.cd_turno
+           Where h.cd_turno  = 1
+          And h.sq_maquina   = T.sq_maquina;
+          --
+          --
+          If ( T.Dh_Final_Intervalo Is Not Null ) Then
+            Return T.Dh_Final_Intervalo;
+          End If;
+
+        Exception
+         when No_Data_Found then
+            dbms_output.put_line('P_Calc: '               ||P_Calc                 ||
+                                 'Sq_maquina: '           ||T.sq_maquina           ||
+                                 'Dh_Final_Intervalo: '   ||T.Dh_Final_Intervalo   ||
+                                 'Linha: '                ||dbms_utility.format_error_backtrace);
+         When Others Then
+            dbms_output.put_line('Código do Erro: ' || Sqlcode || ' MSG: ' ||Sqlerrm);
+            dbms_output.put_line('Linha: ' || dbms_utility.format_error_backtrace);
+        End;
+
+      --
+      --
+      Elsif ( P_Calc = 12 ) Then  -- Qtde apontamento desvio componente(filho)
+        Null;
+        --
+        Begin
+          Select Nvl(Sum(z.Qtde), 0) As Qtde
+           Into T.Qtde_Desvio      
+           From Ztpp_Apt_Desvio z
+          Where 0=0
+          And z.maquina        = P_Maquina_Cod --'0720'
+          And z.Ordem_Producao = Lpad(P_Nr_Op, '12', '0')
+          --And z.sq_lote = '219441'
+          And z.Index_Comp > 0;
+          --
+          If ( T.Qtde_Desvio  Is Not Null ) Then
+            Return T.Qtde_Desvio;
+              dbms_output.put_line('T.Qtde_Desvio  '||' '||T.Qtde_Desvio);
+          Else
+             T.Qtde_Desvio := 0;                 
+         End If;
+          
+        Exception
+          When No_Data_Found Then
+            dbms_output.put_line('P_Calc: '        ||P_Calc                ||chr(13)||
+                                 'T.Qtde_Desvio: ' ||T.Qtde_Desvio         ||chr(13)||
+                                 'P_Maquina_Cod: ' ||P_Maquina_Cod         ||chr(13)||
+                                 'P_Nr_Op: '       ||Lpad(P_Nr_Op, '12', 0)||chr(13)||
+                                 'código do erro: '||Sqlcode               ||chr(13)||
+                                 'Msg: '           ||Sqlerrm               ||chr(13)||
+                                  dbms_utility.format_error_backtrace );       
+        End;
+        --
+        --
+      Else
+          dbms_output.put_line('------------------');
+          T.Qtde_registrada  := Null;
+      End If;
+      Return T.Qtde_registrada;
+
+    Exception
+      When Others Then
+        dbms_output.put_line('Código do Erro: ' || Sqlcode || ' MSG: ' ||Sqlerrm);
+        dbms_output.put_line('Linha: ' || dbms_utility.format_error_backtrace);
+      Return T.Qtde_registrada;
+
+    End Fun_Calc_Generico;  
+
+   -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+   -- Finalidade..: Melhoria de Performance
+   -- Autor.......: Adriano Lima
+   -- Data........: 24/05/2024
+   -- Trello......: Card-509
+   -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+   Procedure Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
+                             , P_Inicio    In Pd_Lote_Rastrea.Dh_Adicionado%Type
+                             , P_Fim       In Pd_Lote_Rastrea.Dh_Adicionado%Type
+                             , P_Produto   In Pd_Lote_Rastrea.Part_No%Type
+                             , P_Nr_Op     In Pd_Lote_Op.Nr_Op%Type )
+
+   Is
+
+    C_DDL                 Constant Varchar2(100):= 'Truncate table chriserp.Lista_Op_Maq';
+    C_Maquina_Cod         Constant Varchar2(100):= '2196'; --maquina de solda nao entra no MES
+
+
+   Begin
+
+
      -- Limpa Tabela:
      Begin
-       Execute Immediate C_DDL;                                                
-     End;          
+       Execute Immediate C_DDL;
+     End;
      --
      --
-     T.Tempo_Parada_Reconhecida          := 0.00; -- Nao esta sendo utilizado no momento 22/05/2024.                              
-                              
-     FOR Reg IN ( Select Nro_Op            As Nro_Op
-                       , Maquina_Cod       As Maquina 
-                       , Qtde_Lote         As Qtde_Op  
+     T.Tempo_Parada_Reconhecida            := 0.00;   --Nao esta sendo utilizado no momento 22/05/2024.
+
+     For Reg In ( Select Nro_Op            As Nro_Op
+                       , Maquina_Cod       As Maquina
+                       , Qtde_Lote         As Qtde_Op
                        , Part_No           As Part_No
                        , Dt_Setup          As Dt_Setup
                        , Data_Ini          As Dt_Ini
@@ -806,96 +1033,127 @@ PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
                        , Qtde_Lote         As Qt_Lote
                        , Qtde_Maq          As Qtde_Realizada
                        , Sq_Controle_Op    As Sq_Controle_Op
-                  From ( 
-                    With Cte_Poa As ( 
-                         Select poa.maquina_cod                                                                
-                              , poa.nr_op                                                                                                                     
+                  From (
+                    With Cte_Poa As (
+                         Select poa.maquina_cod
+                              , poa.nr_op
                               , poa.Dh_Adicionado
                               , poa.Sq_Controle_Op
                               , poa.Qt_Contador
-                              , poa.sq_lote              -- (INDEX CRIADO HENRIQUE)
-                          From pd_op_apontamento     poa --(PK: MAQUINA_COD, NR_OP, SQ_OP_APONTA)                    
-                         --Where trunc(poa.dh_adicionado) between To_Date('03/02/2022','dd/mm/rrrr') And To_Date('03/02/2022', 'dd/mm/rrrr')
+                              , poa.sq_lote
+                          From pd_op_apontamento     poa --(PK: MAQUINA_COD, NR_OP, SQ_OP_APONTA)
                     ),
-                         Cte_Plr As ( 
+                         Cte_Plr As (
                          Select plr.Dh_Lote
                               , plr.Part_No
-                              , plr.Sq_Lote 
+                              , plr.Sq_Lote
                               , plr.dh_adicionado
-                         From pd_lote_rastrea        plr --(PK: SQ_LOTE)    
-                         --Where trunc(plr.dh_adicionado) between To_Date('03/02/2022','dd/mm/rrrr') And To_Date('03/02/2022', 'dd/mm/rrrr')             
-                    )            
+                         From pd_lote_rastrea        plr --(PK: SQ_LOTE)
+                    )
                     Select Poa.maquina_cod                                                                As maquina_cod
-                         , Trunc(poa.nr_op)                                                               As Nro_Op       
-                         , Min(plr.Dh_Lote)                                                               As Dt_Setup 
+                         , Trunc(poa.nr_op)                                                               As Nro_Op
+                         , Min(plr.Dh_Lote)                                                               As Dt_Setup
                          , Trunc(poa.Dh_Adicionado)                                                       As Data
-                         , poa.Sq_Controle_Op                                                             As Sq_Controle_Op                             
+                         , poa.Sq_Controle_Op                                                             As Sq_Controle_Op
                          ,( Max(poa.qt_contador)- min(poa.qt_contador) + 1 )                              As qtde_maq
                          , Min(poa.dh_adicionado)                                                         As data_ini
                          , Max(poa.dh_adicionado)                                                         As data_fim
                          , Round((To_Number(Max(poa.Dh_Adicionado) - min(poa.dh_adicionado) ) * 24 * 60)) As Total_Hr_Prod_OP
                          , plr.part_no                                                                    As part_No
                          , ( Select plr2.Qt_lote
-                               From pd_lote_rastrea plr2 
+                               From pd_lote_rastrea plr2
                               Where plr2.Sq_Lote In ( Select min(poa2.Sq_Lote)
                                                         From pd_op_apontamento poa2
-                                                       Where Trunc(poa2.Nr_Op)  = Trunc(poa.nr_op)                                   
+                                                       Where Trunc(poa2.Nr_Op)  = Trunc(poa.nr_op)
                                                         And poa2.maquina_cod    = poa.maquina_cod
-                                                        And poa2.Sq_Controle_Op = poa.Sq_Controle_Op) 
-                                                        )                                                 As Qtde_lote                                                               
+                                                        And poa2.Sq_Controle_Op = poa.Sq_Controle_Op)
+                                                        )                                                 As Qtde_lote
                     From Cte_Poa           poa
                     Inner Join Cte_Plr     plr
-                        On Poa.Sq_Lote = plr.Sq_Lote 
+                        On Poa.Sq_Lote = plr.Sq_Lote
                         And Trunc(Poa.Dh_Adicionado) = Trunc(Plr.Dh_Adicionado)
-                    Where 0=0                       
-                    -- PARA TESTE:   
+                    Where 0=0
+                    -- PARA TESTE:
                     --And trunc(poa.dh_adicionado) between To_Date('03/02/2022','dd/mm/rrrr') And To_Date('03/02/2022', 'dd/mm/rrrr')
-                    --And poa.nr_op       = Lpad('1758754', 12, 0)  
+                    --And poa.nr_op       = Lpad('1758754', 12, 0)
                     --And Poa.maquina_cod = '0880'
                     --And poa.nr_op       = Lpad('1759743', 12, 0)
                     --And Plr.Part_No     = '6081120010'
                                             -----------------------
                                             -- FILTRO DO RELATORIO:
                                             -----------------------
-                                           
-                     And Trunc(Poa.dh_adicionado) Between To_Date(P_Inicio, 'dd/mm/rrrr') 
+
+                     And Trunc(Poa.dh_adicionado) Between To_Date(P_Inicio, 'dd/mm/rrrr')
                                                       And To_Date(P_Fim, 'dd/mm/rrrr')
-                     And Lpad(Poa.maquina_cod,5,0) = nvl(Lpad(P_Maquina, 5, 0),Lpad(Poa.maquina_cod, 5, 0)) 
-                     And Poa.nr_op                 = nvl(Lpad(P_Nr_Op, 12, 0), Poa.nr_op)
-                     And Plr.Part_No               = nvl(P_Produto, Plr.Part_No)                      
-                     --                         
+                     And Lpad(Poa.maquina_cod,5,0) = nvl(Lpad(P_Maquina, 5, 0),Lpad(Poa.maquina_cod, 5, 0))
+                     And Trunc(Poa.nr_op)          = nvl(Lpad(P_Nr_Op, 12, 0), Poa.nr_op)
+                     And Plr.Part_No               = nvl(P_Produto, Plr.Part_No)
+                     --
                     Group By poa.maquina_cod
                            , poa.Nr_Op
-                           , trunc(poa.Dh_Adicionado) 
+                           , trunc(poa.Dh_Adicionado)
                            , poa.Sq_Controle_Op
                            , plr.Part_No
-                   ) Result_View_Poa 
-                   Where Total_Hr_Prod_OP > 0 
+                   ) Result_View_Poa
+                   Where Total_Hr_Prod_OP > 0
+                   And maquina_cod        <> C_Maquina_Cod --maquina de solda não entra no MES
                    --And Rownum <= 2
-                  Order By Nro_Op                 
-                  
+                  Order By Nro_Op
 
-     ) LOOP
+
+     ) Loop
         -- FUNCTION:
-        T.Descricao               := Fun_Calc_Generico(P_Calc => 1, P_Nr_Op => Reg.Nro_Op, P_Data => to_date(Reg.dt_setup, 'dd/mm/rrrr hh24:mi:ss'), P_Maquina_Cod => Reg.Maquina, P_Produto => Reg.Part_No);
-        T.Qtde_registrada         := Fun_Calc_Generico(P_Calc => 2, P_Nr_Op => Reg.Nro_Op, P_Data => to_date(Reg.dt_setup, 'dd/mm/rrrr hh24:mi:ss'), P_Maquina_Cod => Reg.maquina, P_Produto => Reg.part_no, P_Sq_Controle_Op => Reg.Sq_Controle_Op );                                                                                                  
-        T.Tempo_Parada            := Fun_Calc_Generico(P_Calc => 3, P_Nr_Op => Reg.Nro_Op, P_Data => to_date(Reg.dt_setup, 'dd/mm/rrrr hh24:mi:ss'), P_Maquina_Cod => Reg.maquina, P_Produto => Reg.part_no, P_Sq_Controle_Op => Reg.Sq_Controle_Op);        
-        T.Data_Lib_Op             := Fun_Calc_Generico(P_Calc => 4, P_Nr_Op => Reg.Nro_Op);
-        --T.Sq_Lote               := Fun_Calc_Generico(P_Calc => 5, P_Nr_Op => Reg.Nro_Op, P_Data => to_date(Reg.dt_setup, 'dd/mm/rrrr hh24:mi:ss'), P_Maquina_Cod => Reg.maquina, P_Produto => Reg.part_no, P_Sq_Controle_Op => Reg.Sq_Controle_Op );          
-        T.Qtde_Desvio             := Fun_Calc_Generico(P_Calc => 6, P_Nr_Op => Reg.Nro_Op, P_Data => to_date(Reg.dt_setup, 'dd/mm/rrrr hh24:mi:ss'), P_Maquina_Cod => Reg.maquina, P_Produto => Null, P_Sq_Controle_Op => Reg.Sq_Controle_Op);        
-        T.Setor                   := Fun_Calc_Generico(P_Calc => 7, P_Maquina_Cod => Reg.maquina);
-        T.Dh_Inicial_Turno        := Fun_Calc_Generico(P_Calc => 8, P_Maquina_Cod => Reg.maquina);
-        T.Dh_Final_Turno          := Fun_Calc_Generico(P_Calc => 9, P_Maquina_Cod => Reg.maquina);        
-        T.Dh_Inicial_Intervalo    := Fun_Calc_Generico(P_Calc => 10, P_Maquina_Cod => Reg.maquina);
-        T.Dh_Final_Intervalo      := Fun_Calc_Generico(P_Calc => 11, P_Maquina_Cod => Reg.maquina);                           
+        If ( Reg.Nro_Op = 0 ) Then -- prototipo nao tem ordem no M.E.S
+
+            T.Descricao               := Fun_Calc_Generico(P_Calc => 1,  P_Nr_Op => Reg.Nro_Op, P_Data => to_date(Reg.dt_setup, 'dd/mm/rrrr hh24:mi:ss'), P_Maquina_Cod => Reg.Maquina, P_Produto => Reg.Part_No);
+            T.Qtde_registrada         := Fun_Calc_Generico(P_Calc => 2,  P_Nr_Op => Reg.Nro_Op, P_Data => to_date(Reg.dt_setup, 'dd/mm/rrrr hh24:mi:ss'), P_Maquina_Cod => Reg.maquina, P_Produto => Reg.part_no, P_Sq_Controle_Op => Reg.Sq_Controle_Op );
+            T.Tempo_Parada            := Fun_Calc_Generico(P_Calc => 3,  P_Nr_Op => Reg.Nro_Op, P_Data => to_date(Reg.dt_setup, 'dd/mm/rrrr hh24:mi:ss'), P_Maquina_Cod => Reg.maquina, P_Produto => Reg.part_no, P_Sq_Controle_Op => Reg.Sq_Controle_Op);
+            T.Qtde_Desvio             := Fun_Calc_Generico(P_Calc => 6,  P_Nr_Op => Reg.Nro_Op, P_Data => to_date(Reg.dt_setup, 'dd/mm/rrrr hh24:mi:ss'), P_Maquina_Cod => Reg.maquina, P_Produto => Null, P_Sq_Controle_Op => Reg.Sq_Controle_Op);
+            T.Setor                   := Fun_Calc_Generico(P_Calc => 7,  P_Maquina_Cod => Reg.maquina);
+            T.Dh_Inicial_Turno        := Fun_Calc_Generico(P_Calc => 8,  P_Maquina_Cod => Reg.maquina);
+            T.Dh_Final_Turno          := Fun_Calc_Generico(P_Calc => 9,  P_Maquina_Cod => Reg.maquina);
+            T.Dh_Inicial_Intervalo    := Fun_Calc_Generico(P_Calc => 10, P_Maquina_Cod => Reg.maquina);
+            T.Dh_Final_Intervalo      := Fun_Calc_Generico(P_Calc => 11, P_Maquina_Cod => Reg.maquina);
+
+         Elsif ( Reg.Nro_Op > 0 ) Then
+
+            T.Descricao               := Fun_Calc_Generico(P_Calc => 1,  P_Nr_Op => Reg.Nro_Op, P_Data => to_date(Reg.dt_setup, 'dd/mm/rrrr hh24:mi:ss'), P_Maquina_Cod => Reg.Maquina, P_Produto => Reg.Part_No);
+            T.Qtde_registrada         := Fun_Calc_Generico(P_Calc => 2,  P_Nr_Op => Reg.Nro_Op, P_Data => to_date(Reg.dt_setup, 'dd/mm/rrrr hh24:mi:ss'), P_Maquina_Cod => Reg.maquina, P_Produto => Reg.part_no, P_Sq_Controle_Op => Reg.Sq_Controle_Op );
+            T.Tempo_Parada            := Fun_Calc_Generico(P_Calc => 3,  P_Nr_Op => Reg.Nro_Op, P_Data => to_date(Reg.dt_setup, 'dd/mm/rrrr hh24:mi:ss'), P_Maquina_Cod => Reg.maquina, P_Produto => Reg.part_no, P_Sq_Controle_Op => Reg.Sq_Controle_Op);
+            T.Data_Lib_Op             := Fun_Calc_Generico(P_Calc => 4,  P_Nr_Op => Reg.Nro_Op);
+            T.Qtde_Desvio             := Fun_Calc_Generico(P_Calc => 6,  P_Nr_Op => Reg.Nro_Op, P_Data => to_date(Reg.dt_setup, 'dd/mm/rrrr hh24:mi:ss'), P_Maquina_Cod => Reg.maquina, P_Produto => Null, P_Sq_Controle_Op => Reg.Sq_Controle_Op);
+            T.Setor                   := Fun_Calc_Generico(P_Calc => 7,  P_Maquina_Cod => Reg.maquina);
+            T.Dh_Inicial_Turno        := Fun_Calc_Generico(P_Calc => 8,  P_Maquina_Cod => Reg.maquina);
+            T.Dh_Final_Turno          := Fun_Calc_Generico(P_Calc => 9,  P_Maquina_Cod => Reg.maquina);
+            T.Dh_Inicial_Intervalo    := Fun_Calc_Generico(P_Calc => 10, P_Maquina_Cod => Reg.maquina);
+            T.Dh_Final_Intervalo      := Fun_Calc_Generico(P_Calc => 11, P_Maquina_Cod => Reg.maquina);
+
+         Else
+          Null;
+        End If;
         --
-        --                                       
+        --
+        /*
+        DBMS_OUTPUT.PUT_LINE('P_Inicio: '              ||P_Inicio                ||CHR(13)||
+                             'P_Fim: '                 ||P_Fim                   ||CHR(13)||
+                             'T.Descricao: '           ||T.Descricao             ||CHR(13)||
+                             'T.Qtde_registrada: '     || T.Qtde_registrada      ||CHR(13)||
+                             'T.Tempo_Parada: '        || T.Tempo_Parada         ||CHR(13)||
+                             'T.Data_Lib_Op: '         || T.Data_Lib_Op          ||CHR(13)||
+                             'T.Qtde_Desvio: '         || T.Qtde_Desvio          ||CHR(13)||
+                             'T.Setor: '               || T.Setor                ||CHR(13)||
+                             'T.Dh_Inicial_Turno: '    || T.Dh_Inicial_Turno     ||CHR(13)||
+                             'T.Dh_Final_Turno: '      || T.Dh_Final_Turno       ||CHR(13)||
+                             'T.Dh_Inicial_Intervalo: '|| T.Dh_Inicial_Intervalo ||CHR(13)||
+                             'T.Dh_Final_Intervalo: '  || T.Dh_Final_Intervalo   ||CHR(13)||
+                             'T.Data_Lib_Op : '        || T.Data_Lib_Op          ||CHR(13) );
+        */
         Insert Into chriserp.Lista_Op_Maq (   nro_op
                                             , maquina
                                             , produto
                                             , descricao
                                             , dt_setup
-                                            , dt_ini 
+                                            , dt_ini
                                             , dt_fim
                                             , qtde_op
                                             , qtde_registrada
@@ -915,33 +1173,32 @@ PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
                                             , To_Char(Reg.maquina)
                                             , To_Char(Reg.part_no)
                                             , To_Char(T.Descricao)
-                                            , Reg.dt_setup
-                                            , Reg.Dt_Ini
-                                            , Reg.Dt_Fim
-                                            , To_Number(reg.qtde_op) 
+                                            , To_Date(To_Char(Reg.dt_setup, 'DD/MM/RRRR HH24:MI:SS'), 'DD/MM/RRRR HH24:MI:SS')
+                                            , To_Date(To_Char(Reg.Dt_Ini, 'DD/MM/RRRR HH24:MI:SS'), 'DD/MM/RRRR HH24:MI:SS')
+                                            , To_Date(To_Char(Reg.Dt_Fim, 'DD/MM/RRRR HH24:MI:SS'), 'DD/MM/RRRR HH24:MI:SS')
+                                            , To_Number(reg.qtde_op)
                                             , To_number(Nvl(T.Qtde_registrada, 0))
-                                            , To_Number(Reg.Qtde_Realizada) 
-                                            , To_Number(T.Tempo_Parada) 
+                                            , To_Number(Reg.Qtde_Realizada)
+                                            , To_Number(T.Tempo_Parada)
                                             , To_Number(T.Tempo_Parada_Reconhecida)
-                                            , To_DATE(T.Data_Lib_Op, 'DD/MM/RRRR HH24:MI:SS')              
-                                            , To_Number(T.Qtde_Desvio) 
+                                            , To_Date(T.Data_Lib_Op, 'DD/MM/RRRR HH24:MI:SS')
+                                            , To_Number(T.Qtde_Desvio)
                                             , To_Char(T.Setor)
                                             , To_Char(T.Dh_Inicial_Turno)
                                             , To_Char(T.Dh_Final_Turno)
                                             , To_Char(T.Dh_Inicial_Intervalo)
                                             , To_Char(T.Dh_Final_Intervalo)
-                                            , To_Number(reg.sq_controle_op) 
-                                            );       
-       
-                                    
+                                            , To_Number(reg.sq_controle_op)
+                                            );
+
          --Null;
-       END LOOP;            
-       
-    EXCEPTION 
-      WHEN OTHERS THEN  
+       End Loop;
+
+    Exception
+      When Others Then
         dbms_output.put_line('código do erro: ' || Sqlcode || ' Msg: ' ||Sqlerrm);
-        dbms_output.put_line('Linha: ' || dbms_utility.format_error_backtrace);                                      
-    END; 
+        dbms_output.put_line('Linha: ' || dbms_utility.format_error_backtrace);
+    End;
     --
     --
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -1053,56 +1310,57 @@ PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
     End;*/
 
     -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-    -- Finalidade..: Melhoria de Performance 
+    -- Finalidade..: Melhoria de Performance
     -- Autor.......: Adriano Lima
-    -- Data........: 24/05/2024 
-    -- Trello......: Card-509 
+    -- Data........: 24/05/2024
+    -- Trello......: Card-509
     -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-    Procedure Lista_OP_Maquina( P_Maquina     In Pd_Lote_Rastrea.Maquina_Cod%Type,
-                                P_Inicio      In Pd_Lote_Rastrea.Dh_Adicionado%Type,
-                                P_Fim         In Pd_Lote_Rastrea.Dh_Adicionado%Type,
-                                P_Produto     In Pd_Lote_Rastrea.Part_No%Type,
-                                P_Nr_Op       In Pd_Lote_Op.Nr_Op%Type,
-                                P_Cursor      Out G_Cursor )
-   Is
+    Procedure Lista_OP_Maquina(   P_Maquina     In Pd_Lote_Rastrea.Maquina_Cod%Type
+                                   , P_Inicio      In Pd_Lote_Rastrea.Dh_Adicionado%Type
+                                   , P_Fim         In Pd_Lote_Rastrea.Dh_Adicionado%Type
+                                   , P_Produto     In Pd_Lote_Rastrea.Part_No%Type
+                                   , P_Nr_Op       In Pd_Lote_Op.Nr_Op%Type
+                                   , P_Cursor      Out G_Cursor )
 
-   Begin
-       
-    Subprocesso_Lom(   p_maquina  => P_Maquina  
-                     , p_inicio   => p_inicio  
-                     , p_fim      => p_fim      
-                     , p_produto  => P_Produto  
-                     , P_Nr_Op    => P_Nr_Op );                       
-   
-     Open P_Cursor For 
-       Select l.Nro_Op
-            , l.Maquina
-            , l.produto
-            , l.Descricao 
-            , l.Dt_Setup
-            , l.dt_ini
-            , l.Dt_Fim
-            , l.Qtde_OP
-            , l.Qtde_Registrada
-            , l.Qtde_Realizada
-            , l.Tempo_Parada
-            , l.Tempo_Parada_Reconhecida
-            , l.Data_Lib_Op
-            , l.Qtde_Desvio
-            , l.Setor
-            , l.Dh_Inicial_Turno
-            , l.Dh_Final_Turno
-            , l.Dh_Inicial_Intervalo
-            , l.Dh_Final_Intervalo
-            , l.Sq_Controle_Op            
-        From Lista_Op_Maq l;
-          
-     EXCEPTION 
-      WHEN OTHERS THEN  
-        dbms_output.put_line('código do erro: ' || Sqlcode || ' Msg: ' ||Sqlerrm);
-        dbms_output.put_line('Linha: ' || dbms_utility.format_error_backtrace);                                      
-   End; 
-   
+       Is
+
+       Begin
+
+        Subprocesso_Lom(   p_maquina  => P_Maquina
+                         , p_inicio   => p_inicio
+                         , p_fim      => p_fim
+                         , p_produto  => P_Produto
+                         , P_Nr_Op    => P_Nr_Op );
+
+         Open P_Cursor For
+           Select l.Nro_Op
+                , l.Maquina
+                , l.produto
+                , l.Descricao
+                , l.Dt_Setup
+                , l.dt_ini
+                , l.Dt_Fim
+                , l.Qtde_OP
+                , l.Qtde_Registrada
+                , l.Qtde_Realizada
+                , l.Tempo_Parada
+                , l.Tempo_Parada_Reconhecida
+                , l.Data_Lib_Op
+                , l.Qtde_Desvio
+                , l.Setor
+                , l.Dh_Inicial_Turno
+                , l.Dh_Final_Turno
+                , l.Dh_Inicial_Intervalo
+                , l.Dh_Final_Intervalo
+                , l.Sq_Controle_Op
+            From Lista_Op_Maq l;
+
+         Exception
+          When Others Then
+            dbms_output.put_line('código do erro: ' || Sqlcode || ' Msg: ' ||Sqlerrm);
+            dbms_output.put_line('Linha: ' || dbms_utility.format_error_backtrace);
+       End;    
+
 
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
    -- Finalidade: Lista Apontamentos de Paradas por OP
@@ -1205,8 +1463,13 @@ PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
    Is
    Begin
        Open P_Cursor For
-         Select Maquina, a.Centro_Trabalho,
-                Codigo_Defeito, b.Descricao, Sum(Qtde) Qtde, Observacao
+         Select Maquina
+              , a.Centro_Trabalho
+              , Codigo_Defeito
+              , b.Descricao
+              , Sum(Qtde) Qtde
+              , Observacao
+              , a.Index_Comp
            From Ztpp_Apt_Desvio a,
                 Ztpp_Desvio b
           Where a.Mandt = b.Mandt
@@ -1216,87 +1479,104 @@ PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
             And Lpad(Maquina,5,0) = Lpad(P_Maquina,5,0)
             And a.Data_Criacao = To_Char(P_Data_Ini,'YYYYMMDD')
             And a.index_Comp   = 0
+            ---------------------------
+            -- DESCOMENTAR EM PRODUCAO:
+            ---------------------------
+            /*            
             And a.Sq_Lote in (select distinct d.sq_lote
                                 from pd_op_apontamento d
                                where trunc(d.nr_op) = trunc(Ordem_Producao)
                                  and trunc(d.dh_adicionado) = trunc(P_Data_Ini)
                                  and lpad(d.maquina_cod,5,0) = lpad(a.Maquina,5,0)
                                  and d.sq_controle_op = P_Sq_Controle_Op)
-            Group by Maquina, a.Centro_Trabalho,Codigo_Defeito, b.Descricao,Observacao;
+            */
+            Group by Maquina
+                   , a.Centro_Trabalho
+                   , Codigo_Defeito
+                   , b.Descricao
+                   , Observacao
+                   , a.Index_Comp;
    End;
   -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
   -- Finalidade..: Apontamento de Defeito M.E.S Componente
   -- Autor.......: Adriano Lima
-  -- Data........: 19/06/2024 
-  -- Trello......: Card-343 
-  -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --   
+  -- Data........: 19/06/2024
+  -- Trello......: Card-343
+  -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
   Procedure Lista_Desvios_Comp(   P_Maquina            In Pd_Lote_Rastrea.Maquina_Cod%Type
                                 , P_Nr_Op              In Pd_Lote_OP.Nr_Op%Type
                                 , P_Data_Ini           In Pd_Lote_Rastrea.Dh_Lote%Type
                                 , P_Sq_Controle_Op     In Pd_Op_Apontamento.Sq_Controle_Op%Type
-                                , P_Cursor             Out G_Cursor 
+                                , P_Cursor             Out G_Cursor
                                 , P_Erro_Num           Out Number
-                                , P_Erro_Des           Out Varchar2 )  
-  Is    
-  
+                                , P_Erro_Des           Out Varchar2 )
+  Is
+
    V_Dt_Setup                   Varchar(100);
    V_Dt_Formatada               Varchar2(100);
-   
+
   Begin
-  
+
    V_Dt_Setup           := to_char(P_Data_Ini, 'dd/mm/rrrr');
-   V_Dt_Formatada       := substr(V_Dt_Setup, - 4)||substr(V_Dt_Setup, 4 , 2)||substr(V_Dt_Setup, 0 , 2);  
-    
-    Open P_Cursor For 
+   V_Dt_Formatada       := substr(V_Dt_Setup, - 4)||substr(V_Dt_Setup, 4 , 2)||substr(V_Dt_Setup, 0 , 2);
+
+    Open P_Cursor For
      Select a.Maquina
           , a.Centro_Trabalho
           , a.Codigo_Defeito
           , b.Descricao
           , Sum(a.Qtde) As Qtde
           , a.Observacao
-       From Ztpp_Apt_Desvio       a 
+          , a.index_Comp
+       From Ztpp_Apt_Desvio       a
        Inner Join Ztpp_Desvio     b
         On Codigo_Defeito = b.Cod
         And  a.Mandt      = b.Mandt
-        --      
+        --
         --
         And a.index_Comp              > 0
         And a.Mandt                   = '400'
-              
-        And Lpad(Ordem_Producao,12,0) = Lpad(P_Nr_Op, 12, 0)
-        And Lpad(a.Maquina,5,0)       = Lpad(P_Maquina, 5, 0)
-        And a.Data_Criacao            = V_Dt_Formatada --20240619                                                   
+
+        And Lpad(Ordem_Producao,12,0) = Lpad(P_Nr_Op, 12, 0)  -- Descomentar em prod. apenas para teste....0736/0880
+        --And Lpad(a.Maquina,5,0)       = Lpad(P_Maquina, 5, 0)
+        And a.Data_Criacao            = V_Dt_Formatada --20240619
+        ---------------------------
+        -- DESCOMENTAR EM PRODUCAO:
+        ---------------------------
+        /*        
         And a.Sq_lote IN ( Select Distinct(z.Sq_Lote)
                               From ztpp_apt_desvio z
                              Where 0=0
                              And Lpad(z.Ordem_Producao, 12, 0) = Lpad(P_Nr_Op, 12, 0)
-                             And Lpad(z.Maquina, 5, 0)         = Lpad(P_Maquina, 5, 0)
+                             And Lpad(z.Maquina, 5, 0)         = Lpad(P_Nr_Op, 5, 0)
                              And z.Data_Criacao                = V_Dt_Formatada
                              And z.Index_Comp                  = a.Index_Comp )
+        */
         --
-        --
+        --           
        Group by Maquina
               , a.Centro_Trabalho
               , a.Codigo_Defeito
               , b.Descricao
-              , a.Observacao;                                            
+              , a.Observacao
+              , a.index_Comp;
       Exception
         When No_Data_Found Then
           --
-         dbms_output.put_line('P_Nr_Op: '      ||P_Nr_Op        ||        
+         dbms_output.put_line('P_Nr_Op: '      ||P_Nr_Op        ||
                               'Descricao: '    ||T.Descricao    ||
                               'Maquina: '      ||P_Maquina      ||
                               'Data_Criacao: ' ||V_Dt_Formatada ||
                               'P_Erro_Num: '   ||P_Erro_Num     ||
-                              'P_Erro_Des: '   ||P_Erro_Des     ||                    
-                              'Linha: '        ||dbms_utility.format_error_backtrace);  
-                         
+                              'P_Erro_Des: '   ||P_Erro_Des     ||
+                              'Linha: '        ||dbms_utility.format_error_backtrace);
+
         When Others Then
           dbms_output.put_line('código do erro: ' || Sqlcode || ' Msg: ' ||Sqlerrm);
-          dbms_output.put_line('Linha: ' || dbms_utility.format_error_backtrace);  
-                        
+          dbms_output.put_line('Linha: ' || dbms_utility.format_error_backtrace);
+
   End;
-  
+
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
    -- Finalidade: Atualiza Qtde da Rastreabilidade Automática
    -- Autor.....: Jaqueline Orrico
@@ -1304,14 +1584,24 @@ PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
    Procedure Atualiza_Rastreabilidade(P_Sq_Lote In Pd_Lote_Rastrea.Sq_Lote%Type)
    Is
-     V_Flag_Aponta     Pd_Op_Apontamento.Flag_Aponta%Type;
-     V_Sq_Controle_Op  Pd_Op_Apontamento.sq_controle_op%Type;
-     V_Qtde            Pd_Rastreabilidade.Qt_Lote%Type;
-     V_Qtde_Aux        Pd_Rastreabilidade.Qt_Lote%Type;
-     V_Qt_Contador     Pd_Op_Apontamento.Qt_Contador%Type;
-     V_Erro1           Number(1):= 0;
-     V_Cd_Fam          Pd_Lote_Rastrea.Cd_Fam%Type;
-     V_Cod_Produto     Pd_Lote_Rastrea.Part_No%Type;
+     V_Flag_Aponta         Pd_Op_Apontamento.Flag_Aponta%Type;
+     V_Sq_Controle_Op      Pd_Op_Apontamento.sq_controle_op%Type;
+     V_Qtde                Pd_Rastreabilidade.Qt_Lote%Type;
+     V_Qtde_Aux            Pd_Rastreabilidade.Qt_Lote%Type;
+     --
+     V_Qt_Contador         Pd_Op_Apontamento.Qt_Contador%Type;
+     v_Qt_Apontada         Pd_Op_Apontamento.Qt_Contador%Type;
+     V_Qt_Baixa            Pd_Op_Apontamento.Qt_Contador%Type;
+     --
+     V_Erro1               Number(1):= 0;
+     V_Cd_Fam              Pd_Lote_Rastrea.Cd_Fam%Type;
+     V_Cod_Produto         Pd_Lote_Rastrea.Part_No%Type;
+     --
+     V_Table_Plr           Pd_Lote_Rastrea%RowType;
+     V_Apontamento         Varchar2(50);
+     V_Erro_Num            Number;
+     V_Erro_Desc           Varchar2(100);
+     
      --
      -- buscar todos os sq_lotes para o FAM que será fechado
      Cursor C1 Is
@@ -1324,13 +1614,15 @@ PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
      R1 C1%Rowtype;
      --
 
-   Begin
-     -- buscar o FAM para o lote que será fechado
+   Begin  -- cd_fam pd_lote_rastrea
+          -- buscar o FAM para o lote que será fechado
      Begin
-       Select Cd_Fam,
-              Part_No
-         Into V_Cd_Fam,
-              V_Cod_Produto
+       Select   a.Cd_Fam
+              , a.Part_No
+              , a.maquina_cod
+         Into   V_Cd_Fam
+              , V_Cod_Produto
+              , V_Table_Plr.Maquina_Cod
          From Pd_Lote_Rastrea a,
               Pd_Lote_Op b
         Where a.Sq_Lote  = P_Sq_Lote
@@ -1354,10 +1646,10 @@ PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
                  From Pd_Op_Apontamento
                 Where Sq_Op_Aponta = (Select Min(a.Sq_Op_Aponta)
                                         From Pd_Op_Apontamento a
-                                       Where Trunc(a.Nr_Op) = r1.Nr_Op --OP
-                                         And a.Sq_Lote = r1.Sq_Lote) --sq_lote
-                                         And Trunc(Nr_Op) = r1.Nr_Op --OP
-                                         And Sq_Lote = r1.Sq_Lote; --sq_lote
+                                       Where Trunc(a.Nr_Op) = r1.Nr_Op 
+                                         And a.Sq_Lote = r1.Sq_Lote)   
+                                         And Trunc(Nr_Op) = r1.Nr_Op   
+                                         And Sq_Lote = r1.Sq_Lote;     
              Exception
                When No_Data_Found Then
                   V_Flag_Aponta := 'P';
@@ -1400,20 +1692,20 @@ PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
              End;
 
              If V_Erro1 = 0 Then
-                dbms_output.put_line(' V_Qtde_Aux ' || V_Qtde_Aux);
+                --dbms_output.put_line(' V_Qtde_Aux ' || V_Qtde_Aux);
 
                 V_Qtde_Aux := V_Qtde_Aux - V_Qt_Contador;
-                dbms_output.put_line(' V_Qtde_Aux Resultado ' || V_Qtde_Aux);
+                --dbms_output.put_line(' V_Qtde_Aux Resultado ' || V_Qtde_Aux);
 
                 V_Qtde := Nvl(V_Qtde,0) + Nvl(V_Qtde_Aux,0);
-                dbms_output.put_line(' V_Qtde ' || V_Qtde);
+                --dbms_output.put_line(' V_Qtde ' || V_Qtde);
              End If;
            End Loop;
            Close C1;
 
            If V_Erro1 = 0 Then
               -- Qtde que será atualizada na rastreabilidade
-              dbms_output.put_line(' Resultado Final ' || V_Qtde);
+              --dbms_output.put_line(' Resultado Final ' || V_Qtde);
               If Nvl(V_Qtde,0) <> 0 Then
                  Update Pd_Rastreabilidade
                     Set Qt_Lote = V_Qtde
@@ -1421,11 +1713,102 @@ PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
                     And Cd_Produto = lpad(V_Cod_Produto,18,0);
 
                  Commit;
-              End If;
-           End If;
-     End If;
 
-   End;
+              End If;
+           End If;          
+           
+   -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+   -- Finalidade: Apontamento Automático no SAP Via Web Service
+   -- Autor.....: Jaqueline Orrico/Adriano Lima
+   -- Data......: 03/07/2024
+   -- Trello....: 248
+   -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+            
+           If ( V_Table_Plr.Maquina_Cod In ('0720') -- (0720 Definido na Reuniao, como maquina piloto) 
+               
+               ) Then 
+               
+               Begin 
+                 --
+                 Begin  
+                   Select qt_contador
+                       Into v_Qt_Apontada
+                      From (
+                        Select Poa.Sq_Op_Aponta
+                             , Poa.qt_contador
+                             , ROW_NUMBER() OVER ( Order By Poa.Sq_Op_Aponta Desc ) As rnum
+                        From pd_op_Apontamento Poa
+                        Where Poa.nr_op = LPAD(r1.Nr_Op, 12, '0')
+                        And Poa.Sq_Lote = r1.Sq_Lote  
+                        Group By Poa.Sq_Op_Aponta
+                               , Poa.qt_contador
+                      )
+                      Where rnum = 1;
+                      
+                      V_Qt_Baixa := ( v_Qt_Apontada - V_Qt_Contador );
+                      
+                      /*
+                      dbms_output.put_line('V_Qt_Contador: '||chr(13||
+                                           'v_Qt_Apontada: '||chr(13)||
+                                           'V_Qt_Baixa: '   ||chr(13)) );
+                     
+                      */
+                 Exception
+                   When No_Data_Found Then
+                     Dbms_output.put_line('Verificar a tabela - pd_op_Apontamento'||CHR(13)||
+                                           'qt_contador: '||v_Qt_Apontada          ||chr(13)||
+                                          'nr_op: '      ||LPAD(r1.Nr_Op, 12, '0')||chr(13)||
+                                          'Sq_Lote: '    ||r1.Sq_Lote             ||chr(13)||
+                                          'Linha: '      ||dbms_utility.format_error_backtrace );
+                   When Others Then
+                     dbms_output.put_line('Código do Erro: ' || Sqlcode ||chr(13)||
+                                          ' MSG: '           || Sqlerrm ||chr(13)||
+                                          'Linha: '          || dbms_utility.format_error_backtrace );        
+                      
+                 End;
+                 --
+                 -- 
+                 /*                                                       
+                 dbms_output.put_line('V_Cd_Fam: '            ||V_Cd_Fam     ||chr(13)||
+                                      'V_Cod_Produto: '       ||V_Cod_Produto||chr(13)||
+                                      'V_Qtde: '              ||V_Qtde );
+                 
+                 */
+                 
+                                      
+                 chriserp.pd_apontamento_prd_pkg.exec_apontamento_prd01
+                       (   P_Nr_Op        => r1.Nr_Op           
+                         , P_Produto      => V_Cod_Produto 
+                         , P_Qtde         => V_Qt_Baixa 
+                         , P_Nr_Lote      => V_Cd_Fam      
+                         , P_Apontamento  => V_Apontamento 
+                         , P_Erro_Num     => V_Erro_Num
+                         , P_Erro_Des     => V_Erro_Desc ); 
+               Exception
+                 When Others Then
+                   dbms_output.put_line
+                   ( 'Erro na chamada do objeto - chriserp.pd_apontamento_prd_pkg.exec_apontamento_prd01 '||chr(13)||
+                     'V_Table_Plr.Maquina_Cod: '|| V_Table_Plr.Maquina_Cod||chr(13)||                     
+                     'P_Nr_Op: '                || r1.Nr_Op               ||chr(13)||
+                     'P_Produto: '              || V_Table_Plr.Part_No    ||chr(13)||
+                     'P_Qtde: '                 || V_Qtde                 ||chr(13)||
+                     'P_Nr_Lote:'               || V_Table_Plr.Nr_Lote    ||chr(13)||
+                     'P_Apontamento: '          || V_Apontamento          ||chr(13)||
+                     'P_Erro_Num: '             || V_Erro_Num             ||chr(13)||
+                     'P_Erro_Des: '             || V_Erro_Desc            ||chr(13)||
+                     'Código do Erro: '         || Sqlcode                ||chr(13)||
+                     'MSG: '                    || Sqlerrm                ||chr(13)||
+                     'Linha: '                  || dbms_utility.format_error_backtrace
+                     );                                 
+                 
+               End;        
+               
+           End If;           
+          
+
+     End If;
+          
+   End; 
 
    -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
    -- Finalidade: Retornar o último apontamento para máquina
@@ -1475,8 +1858,8 @@ PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
       v_qt_lote            Pd_Op_Apontamento_Aux.qt_lote%type;
       v_qt_tot_desvio      Pd_Op_Apontamento_Aux.qt_tot_desvio%type;
       v_qt_tot_hr_paradas  Pd_Op_Apontamento_Aux.qt_tot_hr_paradas%type;
-      v_data_ini           Pd_Op_Apontamento_Aux.data_ini%type;
-      v_data_fim           Pd_Op_Apontamento_Aux.data_fim%type;
+      --v_data_ini           Pd_Op_Apontamento_Aux.data_ini%type;
+      --v_data_fim           Pd_Op_Apontamento_Aux.data_fim%type;
       v_qt_tot_hr_prod_op  Pd_Op_Apontamento_Aux.qt_tot_hr_prod_op%type;
       v_cont               Number(6);
       v_sq_controle_op     pd_alerta_solicitacao.sq_controle_op%type;
@@ -1724,6 +2107,71 @@ PROCEDURE Subprocesso_Lom(  P_Maquina   In Pd_Lote_Rastrea.Maquina_Cod%Type
         Commit;
      End If;
    END;
+   --
+   
+   -------------------------------------------------------------------------------
+   --  A PEDIDO DO MARCOS EM: 11/07/2024 P/ IMPLEMENTAR A SEGUNDA FASE DO PROJETO:
+   -------------------------------------------------------------------------------
+   Procedure Lista_Apontamento_Por_Grupo(    P_Nr_Ordem              In  Afko.Aufnr%Type
+                                           -- , P_Idex_Comp             In  Ztpp_Apt_Desvio.Index_Com
+                                           , P_Cursor                Out G_Cursor
+                                           , P_Erro_Num              Out Number
+                                           , P_Erro_Des              Out Varchar2 )
+    Is
+
+      v_Count                    Number;
+
+    Begin
+
+        Select Count(*)
+          Into v_Count
+        from Ztpp_Apt_Desvio s
+        Left Join makt m
+             On Trim(s.componente) = Trim(m.matnr)
+        Where s.ordem_producao     = Lpad(P_Nr_Ordem, 12, 0);
+
+
+        If (v_Count = 0 ) Then
+
+           P_Erro_Num   := 2;
+           P_Erro_Des   := 'Não existe apontamento de componente (Filho) cadastrado no sistema para a ordem '|| P_Nr_Ordem|| '.'
+           ;
+        End If;
+
+        Begin
+
+            Open P_Cursor For
+              Select z.Index_Comp      As Index_Comp
+                   , m.matnr           As Componente
+                   , m.maktx           As Descricao
+                Into T.Index_Comp
+                   , T.componente
+                   , T.Descricao
+              from Mara                  m
+              Right Join ztpp_Apt_desvio z
+                On m.matnr = z.componente
+              Where 0=0
+              And m.mandt          = '400'
+              And z.Data_Criacao   = To_Char(Sysdate,'YYYYMMDD')     -- filtrar apenas apontamentos do dia
+              And z.Data_Criacao   = To_Char(Sysdate,'YYYYMMDD')     -- filtrar apenas apontamentos do dia para OP
+              And m.matnr          = Lpad(Trim(z.componente), 18, 0) -- Componente
+              --
+              --
+              And z.ordem_Producao = Lpad(P_Nr_Ordem, 12, 0)
+              Order By 1;
+
+        Exception
+          When Others Then
+              P_Erro_Num := SQLCODE;
+              P_Erro_Des := 'Erro: ' || SQLERRM;
+              dbms_output.put_line('Código de Erro: ' || SQLCODE || ' - ' || 'Msg: ' || SQLERRM);
+              dbms_output.put_line('Linha: ' || dbms_utility.format_error_backtrace);
+
+        End;
+        --
+        --
+    End;    
 
 
 END;
+/
