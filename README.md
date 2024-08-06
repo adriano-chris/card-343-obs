@@ -69,3 +69,14 @@ qtde máq.  subtrair do
 qtde_realizada - Qtde(ztpp_apt_Desvio) index_Comp > 0
 
 ```
+
+
+
+```sh
+06/08/2024 Guardando a versão do clone_new que contempla todo o desenvolvimento desse projeto.
+diretórios:
+    package
+        chrpp_mf006_pkg
+        chrpp_mf07_pkg
+
+```
